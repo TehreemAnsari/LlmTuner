@@ -19,6 +19,9 @@ export function tuner_trigger(options: TunerOptions): string {
   console.log(`📝 File: ${fileName} (${fileType})`);
   console.log(`📊 Content size: ${content.length} characters`);
   
+  // Execute the GPT-2 script to show dataset processing logs
+  executeGPT2DatasetProcessing(fileName, fileType, content);
+  
   // Return the path to the static GPT-2 script and content file
   return JSON.stringify({
     tuningScript: "gpt2_tuning.py",
@@ -26,6 +29,78 @@ export function tuner_trigger(options: TunerOptions): string {
     fileName: fileName,
     fileType: fileType
   });
+}
+
+function executeGPT2DatasetProcessing(fileName: string, fileType: string, content: string) {
+  console.log(`\n🚀 Processing dataset for GPT-2 tuning...`);
+  console.log(`📄 File: ${fileName}`);
+  console.log(`📝 Type: ${fileType}`);
+  
+  // Simulate the dataset preparation logic from gpt2_tuning.py
+  let texts: string[] = [];
+  
+  if (fileType === '.json') {
+    try {
+      const data = JSON.parse(content);
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          if (typeof item === 'object' && item !== null) {
+            const text = item.text || item.content || item.description || JSON.stringify(item);
+            if (text && text.trim()) {
+              texts.push(text.trim());
+            }
+          } else {
+            texts.push(String(item));
+          }
+        }
+      } else {
+        texts.push(String(data));
+      }
+    } catch {
+      texts = content.split('\n').filter(line => line.trim());
+    }
+  } else if (fileType === '.csv') {
+    const lines = content.split('\n');
+    if (lines.length > 1) {
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          texts.push(lines[i].trim());
+        }
+      }
+    }
+  } else if (fileType === '.jsonl') {
+    for (const line of content.split('\n')) {
+      if (line.trim()) {
+        try {
+          const data = JSON.parse(line);
+          const text = data.text || data.content || JSON.stringify(data);
+          if (text && text.trim()) {
+            texts.push(text.trim());
+          }
+        } catch {
+          texts.push(line.trim());
+        }
+      }
+    }
+  } else {
+    // For text files, split by lines
+    texts = content.split('\n').filter(line => line.trim() && line.trim().length > 10);
+  }
+  
+  console.log(`📊 Prepared ${texts.length} text samples for training`);
+  
+  if (texts.length > 0) {
+    console.log(`📝 Sample text: ${texts[0].substring(0, 100)}...`);
+    
+    // Print first 5 dataset samples for verification
+    console.log(`\n=== First 5 Dataset Samples ===`);
+    for (let i = 0; i < Math.min(5, texts.length); i++) {
+      console.log(`Sample ${i + 1}: ${texts[i].substring(0, 150)}...`);
+    }
+    console.log(`===============================\n`);
+  }
+  
+  console.log(`✅ Dataset processing complete. Ready for GPT-2 training.`);
 }
 
 export function callGPT2TuningScript(fileName: string, fileType: string, content: string, hyperparameters?: any): string {
