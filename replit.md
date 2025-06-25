@@ -9,13 +9,13 @@ A minimalist no-code web platform for fine-tuning Large Language Models. Built w
 
 ## Recent Changes
 
-- ✅ **Simplified Architecture** (Jun 25): Removed unnecessary components - sidebar, model selection, training progress, performance metrics
-- ✅ **Minimalist Dashboard** (Jun 25): Reduced to two main components - file upload and hyperparameters configuration
-- ✅ **Python File Processing** (Jun 25): Added automatic Python script generation for uploaded files
-- ✅ **Training Script Generation** (Jun 25): Creates Python training scripts with hyperparameters when training starts
-- ✅ **Clean File Upload** (Jun 25): Streamlined drag-and-drop interface with file validation
-- ✅ **Simplified Hyperparameters** (Jun 25): Reduced to essential parameters with interactive sliders
-- ✅ **Removed Database Complexity** (Jun 25): Eliminated in-memory storage and database schemas
+- ✅ **Code Architecture Split** (Jun 25): Separated routes.ts into routes.ts and tuner.ts for better organization
+- ✅ **GPT-2 Integration** (Jun 25): Integrated uploaded file content directly into GPT-2 fine-tuning pipeline
+- ✅ **Tuner Module** (Jun 25): Created dedicated tuner.ts with tuner_trigger method for GPT-2 script generation
+- ✅ **File Content Processing** (Jun 25): Routes.ts reads uploaded files and passes content to tuner_trigger
+- ✅ **Code Cleanup** (Jun 25): Removed unnecessary files and duplicate Python script generation code
+- ✅ **Enhanced Upload Flow** (Jun 25): File upload now triggers parallel GPT-2 tuning script generation
+- ✅ **Simplified Architecture** (Jun 25): Removed unnecessary components and database complexity
 
 ## Project Architecture
 
@@ -70,7 +70,9 @@ User Input → React Components → Custom Hooks → TanStack Query → API Rout
 
 ### File Organization
 - `client/`: Frontend React application with components, hooks, and pages
-- `server/`: Backend Express API with routes, storage, and utilities
+- `server/routes.ts`: File upload handling, content reading, and API endpoints
+- `server/tuner.ts`: GPT-2 fine-tuning script generation and training logic
+- `server/index.ts`: Express server setup and middleware configuration
 - `shared/`: Type definitions and schemas shared between frontend and backend
 
 ### Code Quality Standards
