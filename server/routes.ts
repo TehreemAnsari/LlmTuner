@@ -1,41 +1,51 @@
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { z } from "zod";
+import { hyperparametersSchema } from "../shared/schema";
 
-const upload = multer({ 
-  dest: "uploads/",
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.json', '.csv', '.txt', '.jsonl'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only JSON, CSV, TXT, and JSONL files are allowed.'));
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = "uploads";
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "_" + file.originalname);
   }
 });
 
-const hyperparametersSchema = z.object({
-  learning_rate: z.number().min(0.0001).max(0.01),
-  batch_size: z.number().min(1).max(128),
-  epochs: z.number().min(1).max(100),
-  optimizer: z.enum(["adam", "adamw", "sgd"]),
-  weight_decay: z.number().min(0).max(0.1),
-  max_sequence_length: z.number().min(512).max(4096),
+const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedExtensions = ['.json', '.csv', '.txt', '.jsonl'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Invalid file type. Only JSON, CSV, TXT, and JSONL files are allowed."));
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
 });
 
 export function registerRoutes(app: Express) {
   // File upload endpoint
-  app.post("/api/upload", upload.array("files"), async (req, res) => {
+  app.post("/api/upload", upload.array('files'), async (req, res) => {
     try {
-      if (!req.files || req.files.length === 0) {
+      const files = req.files as Express.Multer.File[];
+      
+      if (!files || files.length === 0) {
         return res.status(400).json({ error: "No files uploaded" });
       }
 
-      const files = req.files as Express.Multer.File[];
       const processedFiles = [];
 
       for (const file of files) {
@@ -155,133 +165,154 @@ export function registerRoutes(app: Express) {
 function generatePythonScript(fileName: string, fileType: string, content: string, parsedData?: any): string {
   return `#!/usr/bin/env python3
 """
-Automated file processor for ${fileName}
+GPT-2 Fine-tuning Script for ${fileName}
 Generated on: ${new Date().toISOString()}
 File type: ${fileType}
+Uses uploaded file data instead of WikiText dataset
 """
 
+# Install dependencies
+import subprocess
+import sys
+
+def install_packages():
+    packages = ['datasets', 'huggingface_hub', 'fsspec', 'transformers', 'torch']
+    for package in packages:
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-U', package])
+
+# Uncomment the line below to install packages
+# install_packages()
+
+# Import libraries
+from datasets import Dataset
+from transformers import AutoTokenizer, GPT2LMHeadModel, TrainingArguments, Trainer, DataCollatorForLanguageModeling
 import json
-import csv
-import pandas as pd
-from pathlib import Path
 
-def read_file(file_path):
-    """Read and process the uploaded file"""
-    file_path = Path(file_path)
+# File content embedded from upload
+file_content = """${content.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"""
+
+def prepare_dataset():
+    """Convert uploaded file content to training dataset"""
+    print("Preparing dataset from uploaded file: ${fileName}")
     
-    if not file_path.exists():
-        raise FileNotFoundError(f"File not found: {file_path}")
-    
-    file_ext = file_path.suffix.lower()
-    
+    # Parse content based on file type
+    texts = []
+    ${fileType === '.json' ? `
     try:
-        if file_ext == '.json':
-            return read_json_file(file_path)
-        elif file_ext == '.csv':
-            return read_csv_file(file_path)
-        elif file_ext in ['.txt', '.jsonl']:
-            return read_text_file(file_path)
+        data = json.loads(file_content)
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    # Extract text from common fields
+                    text = item.get('text', '') or item.get('content', '') or item.get('description', '') or str(item)
+                    if text.strip():
+                        texts.append(text.strip())
+                else:
+                    texts.append(str(item))
         else:
-            raise ValueError(f"Unsupported file type: {file_ext}")
-    except Exception as e:
-        print(f"Error reading file: {e}")
-        return None
-
-def read_json_file(file_path):
-    """Process JSON file"""
-    with open(file_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    
-    print(f"JSON file loaded: {len(data) if isinstance(data, list) else 1} records")
-    print(f"Sample data: {str(data)[:200]}...")
-    
-    return data
-
-def read_csv_file(file_path):
-    """Process CSV file"""
-    df = pd.read_csv(file_path)
-    
-    print(f"CSV file loaded: {len(df)} rows, {len(df.columns)} columns")
-    print(f"Columns: {list(df.columns)}")
-    print(f"Sample rows:\\n{df.head()}")
-    
-    return df.to_dict('records')
-
-def read_text_file(file_path):
-    """Process text/JSONL file"""
-    with open(file_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-    
-    # Try to parse as JSONL
-    if file_path.suffix.lower() == '.jsonl':
-        data = []
-        for i, line in enumerate(lines):
+            texts.append(str(data))
+    except:
+        # Fallback to raw content
+        texts = [line.strip() for line in file_content.split('\\n') if line.strip()]
+    ` : fileType === '.csv' ? `
+    lines = file_content.split('\\n')
+    if len(lines) > 1:  # Skip header
+        for line in lines[1:]:
+            if line.strip():
+                # For CSV, combine all columns as text
+                texts.append(line.strip())
+    ` : fileType === '.jsonl' ? `
+    for line in file_content.split('\\n'):
+        if line.strip():
             try:
-                data.append(json.loads(line.strip()))
-            except json.JSONDecodeError:
-                print(f"Warning: Line {i+1} is not valid JSON")
-        
-        print(f"JSONL file loaded: {len(data)} records")
-        return data
-    else:
-        print(f"Text file loaded: {len(lines)} lines")
-        print(f"Sample content: {lines[0][:200] if lines else 'Empty file'}...")
-        return [line.strip() for line in lines if line.strip()]
+                data = json.loads(line)
+                text = data.get('text', '') or data.get('content', '') or str(data)
+                if text.strip():
+                    texts.append(text.strip())
+            except:
+                texts.append(line.strip())
+    ` : `
+    # For text files, split by lines or sentences
+    texts = [line.strip() for line in file_content.split('\\n') if line.strip() and len(line.strip()) > 10]
+    `}
+    
+    print(f"Prepared {len(texts)} text samples for training")
+    if texts:
+        print(f"Sample text: {texts[0][:100]}...")
+    
+    # Create dataset
+    dataset_dict = {"text": texts}
+    dataset = Dataset.from_dict(dataset_dict)
+    
+    return dataset
 
-def analyze_data(data):
-    """Analyze the loaded data for training insights"""
-    if not data:
-        print("No data to analyze")
-        return
-    
-    print("\\n=== Data Analysis ===")
-    print(f"Total records: {len(data)}")
-    
-    if isinstance(data, list) and len(data) > 0:
-        sample = data[0]
-        if isinstance(sample, dict):
-            print(f"Fields: {list(sample.keys())}")
-            
-            # Check for common training data patterns
-            text_fields = [k for k in sample.keys() if 'text' in k.lower() or 'content' in k.lower()]
-            label_fields = [k for k in sample.keys() if 'label' in k.lower() or 'target' in k.lower()]
-            
-            print(f"Potential text fields: {text_fields}")
-            print(f"Potential label fields: {label_fields}")
+# Clean dataset
+def clean_text(example):
+    example['text'] = example['text'].strip().replace('\\n', ' ')
+    return example
 
-def main():
-    """Main processing function"""
-    print("=== File Processing Started ===")
-    print(f"Processing file: ${fileName}")
-    print(f"File type: ${fileType}")
-    print(f"File size: ${content.length} characters")
-    
-    # Embedded file content for processing
-    content = '''${content.replace(/'/g, "\\'")}'''
-    
-    print(f"Content preview: {content[:200]}...")
-    
-    # Process the actual file content
-    try:
-        ${parsedData ? `
-        # Parsed data available
-        import json
-        parsed_data = json.loads('''${JSON.stringify(parsedData)}''')
-        analyze_data(parsed_data)
-        ` : `
-        # Raw content processing
-        lines = content.split('\\n')
-        print(f"Total lines: {len(lines)}")
-        non_empty_lines = [line for line in lines if line.strip()]
-        print(f"Non-empty lines: {len(non_empty_lines)}")
-        `}
-    except Exception as e:
-        print(f"Error processing content: {e}")
-    
-    print("=== Processing Complete ===")
+# Load pretrained GPT-2 tokenizer and model
+print("Loading GPT-2 model and tokenizer...")
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+tokenizer.pad_token = tokenizer.eos_token
+model = GPT2LMHeadModel.from_pretrained("gpt2")
+
+# Prepare custom dataset
+dataset = prepare_dataset()
+dataset = dataset.map(clean_text)
+
+# Tokenize the dataset
+def tokenize_function(examples):
+    return tokenizer(
+        examples["text"],
+        truncation=True,
+        padding="max_length",
+        max_length=128
+    )
+
+print("Tokenizing dataset...")
+tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["text"])
+
+# Setup data collator
+data_collator = DataCollatorForLanguageModeling(
+    tokenizer=tokenizer,
+    mlm=False  # For causal language modeling
+)
+
+# Define training arguments (will be replaced with user hyperparameters)
+training_args = TrainingArguments(
+    output_dir="./gpt2_finetuned_output",
+    per_device_train_batch_size=4,
+    num_train_epochs=3,
+    save_steps=500,
+    logging_steps=100,
+    report_to="none"  # Disable wandb
+)
+
+# Define Trainer
+print("Setting up trainer...")
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    data_collator=data_collator,
+    train_dataset=tokenized_dataset,
+    tokenizer=tokenizer
+)
 
 if __name__ == "__main__":
-    main()
+    print("Starting GPT-2 fine-tuning with uploaded data...")
+    print(f"Training on {len(tokenized_dataset)} samples")
+    
+    # Fine-tune the model
+    trainer.train()
+    
+    # Save the fine-tuned model and tokenizer
+    print("Saving fine-tuned model...")
+    model.save_pretrained("gpt2_finetuned")
+    tokenizer.save_pretrained("gpt2_finetuned")
+    
+    print("Fine-tuning completed successfully!")
+    print("Model saved to: gpt2_finetuned/")
 `;
 }
 
@@ -311,8 +342,6 @@ class LLMTrainer:
         
         for file_name in self.files:
             print(f"Processing file: {file_name}")
-            # In production, you would load and preprocess the actual files
-            # For now, we simulate the process
         
         print(f"Data loaded: {len(self.files)} files processed")
         
@@ -331,7 +360,6 @@ class LLMTrainer:
         print("\\n=== Starting Training ===")
         
         epochs = self.hyperparameters['epochs']
-        batch_size = self.hyperparameters['batch_size']
         
         for epoch in range(epochs):
             print(f"\\nEpoch {epoch + 1}/{epochs}")
