@@ -85,14 +85,25 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
       });
 
       const result = await response.json();
+      console.log("Upload response:", result);
 
       // Show individual file success messages
-      result.files.forEach((file: any) => {
-        toast({
-          title: `${file.originalName} uploaded successfully`,
-          description: `File processed and Python script generated.`,
+      if (result.files && Array.isArray(result.files)) {
+        result.files.forEach((file: any) => {
+          toast({
+            title: `${file.originalName} uploaded successfully`,
+            description: `File processed and Python script generated.`,
+          });
         });
-      });
+      } else {
+        // Fallback success message
+        selectedFiles.forEach((file) => {
+          toast({
+            title: `${file.name} uploaded successfully`,
+            description: `File processed and Python script generated.`,
+          });
+        });
+      }
       
       onFilesUploaded(selectedFiles);
       setSelectedFiles([]);
