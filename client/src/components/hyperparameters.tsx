@@ -44,7 +44,6 @@ export default function Hyperparameters({ uploadedFiles }: HyperparametersProps)
     try {
       await apiRequest("/api/start-training", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           hyperparameters,
           files: uploadedFiles.map(f => f.name),
