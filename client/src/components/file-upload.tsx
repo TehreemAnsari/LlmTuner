@@ -79,14 +79,19 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
         formData.append(`files`, file);
       });
 
-      await apiRequest("/api/upload", {
+      const response = await apiRequest("/api/upload", {
         method: "POST",
         body: formData,
       });
 
-      toast({
-        title: "Files uploaded successfully",
-        description: `${selectedFiles.length} file(s) uploaded and processed.`,
+      const result = await response.json();
+
+      // Show individual file success messages
+      result.files.forEach((file: any) => {
+        toast({
+          title: `${file.originalName} uploaded successfully`,
+          description: `File processed and Python script generated.`,
+        });
       });
       
       onFilesUploaded(selectedFiles);

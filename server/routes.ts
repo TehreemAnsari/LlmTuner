@@ -43,11 +43,37 @@ export function registerRoutes(app: Express) {
         const originalName = file.originalname;
         const ext = path.extname(originalName).toLowerCase();
 
-        // Read file content
-        const content = fs.readFileSync(filePath, 'utf-8');
+        // Read and process file content
+        let content: string;
+        let parsedData: any = null;
+        
+        try {
+          content = fs.readFileSync(filePath, 'utf-8');
+          
+          // Parse content based on file type
+          if (ext === '.json') {
+            parsedData = JSON.parse(content);
+            console.log(`📄 ${originalName}: JSON with ${Array.isArray(parsedData) ? parsedData.length : 1} records`);
+          } else if (ext === '.csv') {
+            const lines = content.split('\n').filter(line => line.trim());
+            console.log(`📄 ${originalName}: CSV with ${lines.length} lines`);
+          } else if (ext === '.jsonl') {
+            const lines = content.split('\n').filter(line => line.trim());
+            const validJson = lines.filter(line => {
+              try { JSON.parse(line); return true; } catch { return false; }
+            });
+            console.log(`📄 ${originalName}: JSONL with ${validJson.length} valid JSON lines`);
+          } else {
+            const lines = content.split('\n').filter(line => line.trim());
+            console.log(`📄 ${originalName}: Text file with ${lines.length} lines`);
+          }
+        } catch (error) {
+          console.error(`❌ Error reading ${originalName}:`, error);
+          content = '';
+        }
         
         // Create Python script to process this file
-        const pythonScript = generatePythonScript(originalName, ext, content);
+        const pythonScript = generatePythonScript(originalName, ext, content, parsedData);
         const scriptPath = path.join("uploads", `process_${Date.now()}_${originalName.replace(/\.[^/.]+$/, "")}.py`);
         
         fs.writeFileSync(scriptPath, pythonScript);
@@ -57,7 +83,8 @@ export function registerRoutes(app: Express) {
           size: file.size,
           type: ext,
           processedAt: new Date().toISOString(),
-          pythonScript: scriptPath
+          pythonScript: scriptPath,
+          contentPreview: content.substring(0, 200) + (content.length > 200 ? '...' : '')
         });
       }
 
@@ -125,7 +152,7 @@ export function registerRoutes(app: Express) {
   });
 }
 
-function generatePythonScript(fileName: string, fileType: string, content: string): string {
+function generatePythonScript(fileName: string, fileType: string, content: string, parsedData?: any): string {
   return `#!/usr/bin/env python3
 """
 Automated file processor for ${fileName}
@@ -227,16 +254,29 @@ def main():
     print("=== File Processing Started ===")
     print(f"Processing file: ${fileName}")
     print(f"File type: ${fileType}")
+    print(f"File size: ${content.length} characters")
     
-    # For demo purposes, we'll work with the embedded content
-    # In production, you'd read from the actual uploaded file
-    content = '''${content.substring(0, 1000).replace(/'/g, "\\'")}'''
+    # Embedded file content for processing
+    content = '''${content.replace(/'/g, "\\'")}'''
     
     print(f"Content preview: {content[:200]}...")
     
-    # You can extend this to actually process the file
-    # data = read_file("path/to/uploaded/file")
-    # analyze_data(data)
+    # Process the actual file content
+    try:
+        ${parsedData ? `
+        # Parsed data available
+        import json
+        parsed_data = json.loads('''${JSON.stringify(parsedData)}''')
+        analyze_data(parsed_data)
+        ` : `
+        # Raw content processing
+        lines = content.split('\\n')
+        print(f"Total lines: {len(lines)}")
+        non_empty_lines = [line for line in lines if line.strip()]
+        print(f"Non-empty lines: {len(non_empty_lines)}")
+        `}
+    except Exception as e:
+        print(f"Error processing content: {e}")
     
     print("=== Processing Complete ===")
 
