@@ -2,22 +2,20 @@
 
 ## Project Overview
 
-A comprehensive no-code web platform for fine-tuning Large Language Models. Built with React, Express.js, and TypeScript, providing an intuitive interface for managing training jobs, uploading datasets, configuring hyperparameters, and monitoring training progress in real-time.
+A minimalist no-code web platform for fine-tuning Large Language Models. Built with React, Express.js, and TypeScript, providing a clean interface for uploading training data and configuring hyperparameters with Python file processing capabilities.
 
-**Current Status**: Fully functional development version with in-memory storage
-**Last Updated**: January 25, 2025
+**Current Status**: Simplified minimalist version with file upload and hyperparameters only
+**Last Updated**: June 25, 2025
 
 ## Recent Changes
 
-- ✅ **Data Schema Design** (Jan 25): Created comprehensive database schema with training jobs, files, and logs tables
-- ✅ **Backend API Implementation** (Jan 25): Built complete REST API with file upload, job management, and training simulation
-- ✅ **Frontend Dashboard** (Jan 25): Implemented modern UI with sidebar navigation and responsive design
-- ✅ **File Upload System** (Jan 25): Added drag-and-drop file upload with validation for JSON, CSV, TXT formats
-- ✅ **Model Selection Interface** (Jan 25): Created dropdown selection with detailed model information display
-- ✅ **Hyperparameter Configuration** (Jan 25): Built interactive sliders and inputs with real-time cost estimation
-- ✅ **Training Progress Monitoring** (Jan 25): Implemented real-time progress tracking with live logs and metrics
-- ✅ **Performance Metrics Display** (Jan 25): Added evaluation metrics and model export functionality
-- ✅ **Documentation Suite** (Jan 25): Created comprehensive README, project structure guide, requirements, and setup instructions
+- ✅ **Simplified Architecture** (Jun 25): Removed unnecessary components - sidebar, model selection, training progress, performance metrics
+- ✅ **Minimalist Dashboard** (Jun 25): Reduced to two main components - file upload and hyperparameters configuration
+- ✅ **Python File Processing** (Jun 25): Added automatic Python script generation for uploaded files
+- ✅ **Training Script Generation** (Jun 25): Creates Python training scripts with hyperparameters when training starts
+- ✅ **Clean File Upload** (Jun 25): Streamlined drag-and-drop interface with file validation
+- ✅ **Simplified Hyperparameters** (Jun 25): Reduced to essential parameters with interactive sliders
+- ✅ **Removed Database Complexity** (Jun 25): Eliminated in-memory storage and database schemas
 
 ## Project Architecture
 

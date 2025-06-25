@@ -1,223 +1,177 @@
 import { useState, useRef } from "react";
-import { CloudUpload, X, FileText, Info } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Upload, File, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useUploadFiles } from "@/hooks/use-training";
 import { useToast } from "@/hooks/use-toast";
-import { SAMPLE_DATASETS } from "@/lib/constants";
+import { apiRequest } from "@/lib/queryClient";
 
 interface FileUploadProps {
-  selectedJobId: number | null;
+  onFilesUploaded: (files: File[]) => void;
 }
 
-export default function FileUpload({ selectedJobId }: FileUploadProps) {
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [dragOver, setDragOver] = useState(false);
+export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const uploadFiles = useUploadFiles();
   const { toast } = useToast();
 
-  const handleFileSelect = (files: FileList | null) => {
-    if (!files) return;
-    
-    const validFiles = Array.from(files).filter(file => {
-      const validTypes = ['application/json', 'text/csv', 'text/plain'];
-      const validExtensions = ['.json', '.csv', '.txt'];
-      const extension = '.' + file.name.split('.').pop()?.toLowerCase();
-      
-      return validTypes.includes(file.type) || validExtensions.includes(extension);
-    });
-
-    if (validFiles.length !== files.length) {
-      toast({
-        title: "Invalid files detected",
-        description: "Only JSON, CSV, and TXT files are supported",
-        variant: "destructive",
-      });
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
-
-    setUploadedFiles(prev => [...prev, ...validFiles]);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setDragOver(false);
-    handleFileSelect(e.dataTransfer.files);
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const validFiles = files.filter(file => 
+      file.type === "application/json" || 
+      file.type === "text/csv" || 
+      file.type === "text/plain" ||
+      file.name.endsWith('.jsonl') ||
+      file.name.endsWith('.txt')
+    );
+
+    if (validFiles.length !== files.length) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload JSON, CSV, TXT, or JSONL files only.",
+        variant: "destructive",
+      });
+    }
+
+    setSelectedFiles(prev => [...prev, ...validFiles]);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = () => {
-    setDragOver(false);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setSelectedFiles(prev => [...prev, ...files]);
+    }
   };
 
   const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleUpload = async () => {
-    if (!selectedJobId) {
+    if (selectedFiles.length === 0) {
       toast({
-        title: "No job selected",
-        description: "Please create or select a training job first",
+        title: "No files selected",
+        description: "Please select files to upload.",
         variant: "destructive",
       });
       return;
     }
 
-    if (uploadedFiles.length === 0) {
-      toast({
-        title: "No files to upload",
-        description: "Please select files to upload",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const fileList = new DataTransfer();
-    uploadedFiles.forEach(file => fileList.items.add(file));
-
+    setUploading(true);
+    
     try {
-      await uploadFiles.mutateAsync({
-        jobId: selectedJobId,
-        files: fileList.files
+      const formData = new FormData();
+      selectedFiles.forEach((file) => {
+        formData.append(`files`, file);
+      });
+
+      await apiRequest("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      toast({
+        title: "Files uploaded successfully",
+        description: `${selectedFiles.length} file(s) uploaded and processed.`,
       });
       
-      setUploadedFiles([]);
-      toast({
-        title: "Success",
-        description: "Files uploaded successfully",
-      });
+      onFilesUploaded(selectedFiles);
+      setSelectedFiles([]);
     } catch (error) {
       toast({
         title: "Upload failed",
         description: "Failed to upload files. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setUploading(false);
     }
   };
 
-  const loadSampleDataset = (datasetName: string) => {
-    toast({
-      title: "Sample dataset loaded",
-      description: `${datasetName} dataset has been loaded for demonstration`,
-    });
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">Training Data Upload</h2>
-          <div className="flex items-center text-sm text-slate-500">
-            <Info className="w-4 h-4 mr-1" />
-            <span>Supports JSON, CSV, TXT formats</span>
-          </div>
-        </div>
-
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-            dragOver
-              ? "border-blue-400 bg-blue-50"
-              : "border-slate-300 hover:border-blue-400"
-          }`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={() => fileInputRef.current?.click()}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Training Data Upload</h3>
+        <Button
+          onClick={handleUpload}
+          disabled={selectedFiles.length === 0 || uploading}
+          size="sm"
         >
-          <div className="mx-auto w-12 h-12 text-slate-400 mb-4">
-            <CloudUpload className="w-12 h-12" />
-          </div>
-          <p className="text-sm text-slate-600 mb-2">
-            <span className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer">
-              Click to upload
-            </span>{" "}
-            or drag and drop
-          </p>
-          <p className="text-xs text-slate-500 mb-4">JSON, CSV, TXT up to 100MB</p>
-          
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept=".json,.csv,.txt"
-            multiple
-            onChange={(e) => handleFileSelect(e.target.files)}
-          />
+          {uploading ? "Uploading..." : "Upload Files"}
+        </Button>
+      </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-200">
-            <p className="text-xs text-slate-500 mb-2">Or try with sample datasets:</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {SAMPLE_DATASETS.map((dataset) => (
-                <Button
-                  key={dataset.name}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    loadSampleDataset(dataset.name);
-                  }}
-                >
-                  {dataset.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
+      <div
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+          dragActive
+            ? "border-blue-500 bg-blue-50"
+            : "border-gray-300 hover:border-gray-400"
+        }`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <p className="text-lg font-medium text-gray-600 mb-2">
+          Drop your training files here
+        </p>
+        <p className="text-sm text-gray-500 mb-4">
+          or click to browse (JSON, CSV, TXT, JSONL)
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".json,.csv,.txt,.jsonl"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+      </div>
 
-        {uploadedFiles.length > 0 && (
-          <div className="mt-4">
-            <h3 className="text-sm font-medium text-slate-900 mb-2">Uploaded Files</h3>
-            <div className="space-y-2">
-              {uploadedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-200"
-                >
-                  <div className="flex items-center">
-                    <FileText className="w-4 h-4 text-slate-400 mr-2" />
-                    <div>
-                      <span className="text-sm font-medium text-slate-700">{file.name}</span>
-                      <div className="text-xs text-slate-500">
-                        {formatFileSize(file.size)} • {file.type || 'Unknown type'}
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFile(index)}
-                    className="text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+      {selectedFiles.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="font-medium text-gray-700">Selected Files:</h4>
+          {selectedFiles.map((file, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+            >
+              <div className="flex items-center space-x-3">
+                <File className="w-5 h-5 text-gray-500" />
+                <div>
+                  <p className="font-medium text-gray-900">{file.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 flex justify-end">
+              </div>
               <Button
-                onClick={handleUpload}
-                disabled={uploadFiles.isPending || !selectedJobId}
+                variant="ghost"
+                size="sm"
+                onClick={() => removeFile(index)}
               >
-                {uploadFiles.isPending ? "Uploading..." : "Upload Files"}
+                <X className="w-4 h-4" />
               </Button>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

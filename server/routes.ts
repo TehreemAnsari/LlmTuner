@@ -1,319 +1,375 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { Express } from "express";
 import multer from "multer";
 import path from "path";
-import { storage } from "./storage";
-import { insertTrainingJobSchema, insertTrainingFileSchema, hyperparametersSchema } from "@shared/schema";
+import fs from "fs";
 import { z } from "zod";
 
 const upload = multer({ 
-  dest: 'uploads/',
+  dest: "uploads/",
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['application/json', 'text/csv', 'text/plain'];
-    const allowedExtensions = ['.json', '.csv', '.txt'];
+    const allowedTypes = ['.json', '.csv', '.txt', '.jsonl'];
     const ext = path.extname(file.originalname).toLowerCase();
-    
-    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
+    if (allowedTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JSON, CSV, and TXT files are allowed.'));
+      cb(new Error('Invalid file type. Only JSON, CSV, TXT, and JSONL files are allowed.'));
     }
   }
 });
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  
-  // Get all training jobs
-  app.get("/api/training-jobs", async (req, res) => {
-    try {
-      const jobs = await storage.getAllTrainingJobs();
-      res.json(jobs);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch training jobs" });
-    }
-  });
+const hyperparametersSchema = z.object({
+  learning_rate: z.number().min(0.0001).max(0.01),
+  batch_size: z.number().min(1).max(128),
+  epochs: z.number().min(1).max(100),
+  optimizer: z.enum(["adam", "adamw", "sgd"]),
+  weight_decay: z.number().min(0).max(0.1),
+  max_sequence_length: z.number().min(512).max(4096),
+});
 
-  // Get specific training job
-  app.get("/api/training-jobs/:id", async (req, res) => {
+export function registerRoutes(app: Express) {
+  // File upload endpoint
+  app.post("/api/upload", upload.array("files"), async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const job = await storage.getTrainingJob(id);
-      if (!job) {
-        return res.status(404).json({ message: "Training job not found" });
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
       }
-      res.json(job);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch training job" });
-    }
-  });
 
-  // Create new training job
-  app.post("/api/training-jobs", async (req, res) => {
-    try {
-      const validatedData = insertTrainingJobSchema.parse(req.body);
-      const job = await storage.createTrainingJob(validatedData);
-      res.status(201).json(job);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create training job" });
-    }
-  });
-
-  // Update training job
-  app.patch("/api/training-jobs/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const updates = req.body;
-      const job = await storage.updateTrainingJob(id, updates);
-      if (!job) {
-        return res.status(404).json({ message: "Training job not found" });
-      }
-      res.json(job);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update training job" });
-    }
-  });
-
-  // Delete training job
-  app.delete("/api/training-jobs/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteTrainingJob(id);
-      if (!success) {
-        return res.status(404).json({ message: "Training job not found" });
-      }
-      
-      // Clean up associated files and logs
-      await storage.deleteTrainingLogsByJobId(id);
-      const files = await storage.getTrainingFilesByJobId(id);
-      for (const file of files) {
-        await storage.deleteTrainingFile(file.id);
-      }
-      
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete training job" });
-    }
-  });
-
-  // Upload training files
-  app.post("/api/training-jobs/:id/files", upload.array('files'), async (req, res) => {
-    try {
-      const jobId = parseInt(req.params.id);
       const files = req.files as Express.Multer.File[];
-      
-      if (!files || files.length === 0) {
-        return res.status(400).json({ message: "No files uploaded" });
-      }
+      const processedFiles = [];
 
-      const job = await storage.getTrainingJob(jobId);
-      if (!job) {
-        return res.status(404).json({ message: "Training job not found" });
-      }
-
-      const uploadedFiles = [];
       for (const file of files) {
-        const fileData = {
-          jobId,
-          filename: file.filename,
-          originalName: file.originalname,
-          size: file.size,
-          type: path.extname(file.originalname).toLowerCase().substring(1)
-        };
+        const filePath = file.path;
+        const originalName = file.originalname;
+        const ext = path.extname(originalName).toLowerCase();
+
+        // Read file content
+        const content = fs.readFileSync(filePath, 'utf-8');
         
-        const trainingFile = await storage.createTrainingFile(fileData);
-        uploadedFiles.push(trainingFile);
+        // Create Python script to process this file
+        const pythonScript = generatePythonScript(originalName, ext, content);
+        const scriptPath = path.join("uploads", `process_${Date.now()}_${originalName.replace(/\.[^/.]+$/, "")}.py`);
+        
+        fs.writeFileSync(scriptPath, pythonScript);
+
+        processedFiles.push({
+          originalName,
+          size: file.size,
+          type: ext,
+          processedAt: new Date().toISOString(),
+          pythonScript: scriptPath
+        });
       }
-
-      res.status(201).json(uploadedFiles);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to upload files" });
-    }
-  });
-
-  // Get files for training job
-  app.get("/api/training-jobs/:id/files", async (req, res) => {
-    try {
-      const jobId = parseInt(req.params.id);
-      const files = await storage.getTrainingFilesByJobId(jobId);
-      res.json(files);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch files" });
-    }
-  });
-
-  // Start training
-  app.post("/api/training-jobs/:id/start", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const job = await storage.getTrainingJob(id);
-      if (!job) {
-        return res.status(404).json({ message: "Training job not found" });
-      }
-
-      // Update job status to running
-      const updatedJob = await storage.updateTrainingJob(id, { 
-        status: "running", 
-        progress: 0 
-      });
-
-      // Create initial log entry
-      await storage.createTrainingLog({
-        jobId: id,
-        message: "Training job started",
-        level: "info"
-      });
-
-      // Simulate training progress (in a real app, this would be handled by a queue system)
-      simulateTraining(id);
-
-      res.json(updatedJob);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to start training" });
-    }
-  });
-
-  // Pause training
-  app.post("/api/training-jobs/:id/pause", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const job = await storage.updateTrainingJob(id, { status: "paused" });
-      if (!job) {
-        return res.status(404).json({ message: "Training job not found" });
-      }
-
-      await storage.createTrainingLog({
-        jobId: id,
-        message: "Training job paused",
-        level: "info"
-      });
-
-      res.json(job);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to pause training" });
-    }
-  });
-
-  // Stop training
-  app.post("/api/training-jobs/:id/stop", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const job = await storage.updateTrainingJob(id, { status: "idle" });
-      if (!job) {
-        return res.status(404).json({ message: "Training job not found" });
-      }
-
-      await storage.createTrainingLog({
-        jobId: id,
-        message: "Training job stopped",
-        level: "warning"
-      });
-
-      res.json(job);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to stop training" });
-    }
-  });
-
-  // Get training logs
-  app.get("/api/training-jobs/:id/logs", async (req, res) => {
-    try {
-      const jobId = parseInt(req.params.id);
-      const logs = await storage.getTrainingLogsByJobId(jobId);
-      res.json(logs);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch logs" });
-    }
-  });
-
-  // Estimate cost and time
-  app.post("/api/estimate", async (req, res) => {
-    try {
-      const { baseModel, taskType, hyperparameters, dataSize } = req.body;
-      
-      // Simple estimation logic (in a real app, this would be more sophisticated)
-      const baseTime = dataSize ? Math.ceil(dataSize / 1000) : 30; // minutes
-      const timeFactor = hyperparameters?.epochs || 3;
-      const estimatedTime = `~${baseTime * timeFactor}min`;
-      
-      const baseCost = baseModel === 'gpt-4' ? 50 : 25;
-      const costFactor = (hyperparameters?.epochs || 3) * (hyperparameters?.batchSize || 16) / 16;
-      const estimatedCost = (baseCost * costFactor).toFixed(2);
-      
-      const totalTokens = dataSize ? Math.ceil(dataSize * 0.75) : 125; // rough estimate
 
       res.json({
-        estimatedCost: `$${estimatedCost}`,
-        estimatedTime,
-        totalTokens: `${totalTokens}K`
+        message: "Files uploaded and processed successfully",
+        files: processedFiles
       });
     } catch (error) {
-      res.status(500).json({ message: "Failed to estimate cost and time" });
+      console.error("Upload error:", error);
+      res.status(500).json({ error: "Failed to process uploaded files" });
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
+  // Start training endpoint
+  app.post("/api/start-training", async (req, res) => {
+    try {
+      const { hyperparameters, files } = req.body;
+      
+      // Validate hyperparameters
+      const validatedParams = hyperparametersSchema.parse(hyperparameters);
+      
+      // Create training Python script
+      const trainingScript = generateTrainingScript(validatedParams, files);
+      const scriptPath = path.join("uploads", `training_${Date.now()}.py`);
+      
+      fs.writeFileSync(scriptPath, trainingScript);
+
+      res.json({
+        message: "Training started successfully",
+        trainingScript: scriptPath,
+        hyperparameters: validatedParams,
+        files
+      });
+    } catch (error) {
+      console.error("Training error:", error);
+      res.status(400).json({ error: "Failed to start training" });
+    }
+  });
+
+  // Get uploaded files
+  app.get("/api/files", (req, res) => {
+    try {
+      const uploadsDir = "uploads";
+      if (!fs.existsSync(uploadsDir)) {
+        return res.json({ files: [] });
+      }
+
+      const files = fs.readdirSync(uploadsDir)
+        .filter(file => !file.endsWith('.py'))
+        .map(file => {
+          const filePath = path.join(uploadsDir, file);
+          const stats = fs.statSync(filePath);
+          return {
+            name: file,
+            size: stats.size,
+            uploadedAt: stats.ctime.toISOString()
+          };
+        });
+
+      res.json({ files });
+    } catch (error) {
+      console.error("Files error:", error);
+      res.status(500).json({ error: "Failed to retrieve files" });
+    }
+  });
 }
 
-// Simulate training progress (in a real app, this would be handled by a proper job queue)
-function simulateTraining(jobId: number) {
-  let progress = 0;
-  let step = 0;
-  const totalSteps = 500;
-  
-  const interval = setInterval(async () => {
-    progress += Math.random() * 3;
-    step += Math.floor(Math.random() * 10) + 5;
-    
-    if (progress > 100) progress = 100;
-    if (step > totalSteps) step = totalSteps;
-    
-    // Update job progress
-    await storage.updateTrainingJob(jobId, { 
-      progress: Math.floor(progress),
-      metrics: {
-        currentStep: step,
-        totalSteps,
-        loss: (0.5 - (progress / 200)).toFixed(3),
-        accuracy: Math.min(95, 85 + (progress / 10)).toFixed(1),
-        learningRate: (5e-4 * (1 - progress / 200)).toExponential(1),
-        throughput: (2000 + Math.random() * 200).toFixed(0)
-      }
-    });
+function generatePythonScript(fileName: string, fileType: string, content: string): string {
+  return `#!/usr/bin/env python3
+"""
+Automated file processor for ${fileName}
+Generated on: ${new Date().toISOString()}
+File type: ${fileType}
+"""
 
-    // Add training logs periodically
-    if (step % 100 === 0 || progress >= 100) {
-      const loss = (0.5 - (progress / 200)).toFixed(3);
-      await storage.createTrainingLog({
-        jobId,
-        message: `Epoch ${Math.ceil(step / 167)}/3 - Step ${step}/${totalSteps} - Loss: ${loss}`,
-        level: "info"
-      });
-    }
+import json
+import csv
+import pandas as pd
+from pathlib import Path
+
+def read_file(file_path):
+    """Read and process the uploaded file"""
+    file_path = Path(file_path)
     
-    if (progress >= 100) {
-      await storage.updateTrainingJob(jobId, { 
-        status: "completed",
-        metrics: {
-          ...await storage.getTrainingJob(jobId).then(job => job?.metrics || {}),
-          bleu: "0.847",
-          rouge: "0.792",
-          perplexity: "12.3",
-          f1: "0.913"
+    if not file_path.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
+    
+    file_ext = file_path.suffix.lower()
+    
+    try:
+        if file_ext == '.json':
+            return read_json_file(file_path)
+        elif file_ext == '.csv':
+            return read_csv_file(file_path)
+        elif file_ext in ['.txt', '.jsonl']:
+            return read_text_file(file_path)
+        else:
+            raise ValueError(f"Unsupported file type: {file_ext}")
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return None
+
+def read_json_file(file_path):
+    """Process JSON file"""
+    with open(file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    print(f"JSON file loaded: {len(data) if isinstance(data, list) else 1} records")
+    print(f"Sample data: {str(data)[:200]}...")
+    
+    return data
+
+def read_csv_file(file_path):
+    """Process CSV file"""
+    df = pd.read_csv(file_path)
+    
+    print(f"CSV file loaded: {len(df)} rows, {len(df.columns)} columns")
+    print(f"Columns: {list(df.columns)}")
+    print(f"Sample rows:\\n{df.head()}")
+    
+    return df.to_dict('records')
+
+def read_text_file(file_path):
+    """Process text/JSONL file"""
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    
+    # Try to parse as JSONL
+    if file_path.suffix.lower() == '.jsonl':
+        data = []
+        for i, line in enumerate(lines):
+            try:
+                data.append(json.loads(line.strip()))
+            except json.JSONDecodeError:
+                print(f"Warning: Line {i+1} is not valid JSON")
+        
+        print(f"JSONL file loaded: {len(data)} records")
+        return data
+    else:
+        print(f"Text file loaded: {len(lines)} lines")
+        print(f"Sample content: {lines[0][:200] if lines else 'Empty file'}...")
+        return [line.strip() for line in lines if line.strip()]
+
+def analyze_data(data):
+    """Analyze the loaded data for training insights"""
+    if not data:
+        print("No data to analyze")
+        return
+    
+    print("\\n=== Data Analysis ===")
+    print(f"Total records: {len(data)}")
+    
+    if isinstance(data, list) and len(data) > 0:
+        sample = data[0]
+        if isinstance(sample, dict):
+            print(f"Fields: {list(sample.keys())}")
+            
+            # Check for common training data patterns
+            text_fields = [k for k in sample.keys() if 'text' in k.lower() or 'content' in k.lower()]
+            label_fields = [k for k in sample.keys() if 'label' in k.lower() or 'target' in k.lower()]
+            
+            print(f"Potential text fields: {text_fields}")
+            print(f"Potential label fields: {label_fields}")
+
+def main():
+    """Main processing function"""
+    print("=== File Processing Started ===")
+    print(f"Processing file: ${fileName}")
+    print(f"File type: ${fileType}")
+    
+    # For demo purposes, we'll work with the embedded content
+    # In production, you'd read from the actual uploaded file
+    content = '''${content.substring(0, 1000).replace(/'/g, "\\'")}'''
+    
+    print(f"Content preview: {content[:200]}...")
+    
+    # You can extend this to actually process the file
+    # data = read_file("path/to/uploaded/file")
+    # analyze_data(data)
+    
+    print("=== Processing Complete ===")
+
+if __name__ == "__main__":
+    main()
+`;
+}
+
+function generateTrainingScript(hyperparameters: any, files: string[]): string {
+  return `#!/usr/bin/env python3
+"""
+LLM Fine-tuning Training Script
+Generated on: ${new Date().toISOString()}
+Hyperparameters: ${JSON.stringify(hyperparameters, null, 2)}
+Files: ${JSON.stringify(files)}
+"""
+
+import json
+import time
+from datetime import datetime
+from pathlib import Path
+
+class LLMTrainer:
+    def __init__(self, hyperparameters, files):
+        self.hyperparameters = hyperparameters
+        self.files = files
+        self.training_logs = []
+        
+    def load_data(self):
+        """Load and prepare training data"""
+        print("Loading training data...")
+        
+        for file_name in self.files:
+            print(f"Processing file: {file_name}")
+            # In production, you would load and preprocess the actual files
+            # For now, we simulate the process
+        
+        print(f"Data loaded: {len(self.files)} files processed")
+        
+    def setup_model(self):
+        """Setup the model for training"""
+        print("Setting up model...")
+        print(f"Learning rate: {self.hyperparameters['learning_rate']}")
+        print(f"Batch size: {self.hyperparameters['batch_size']}")
+        print(f"Epochs: {self.hyperparameters['epochs']}")
+        print(f"Optimizer: {self.hyperparameters['optimizer']}")
+        print(f"Weight decay: {self.hyperparameters['weight_decay']}")
+        print(f"Max sequence length: {self.hyperparameters['max_sequence_length']}")
+        
+    def train_model(self):
+        """Execute the training process"""
+        print("\\n=== Starting Training ===")
+        
+        epochs = self.hyperparameters['epochs']
+        batch_size = self.hyperparameters['batch_size']
+        
+        for epoch in range(epochs):
+            print(f"\\nEpoch {epoch + 1}/{epochs}")
+            
+            # Simulate training steps
+            for step in range(1, 11):  # 10 steps per epoch for demo
+                loss = max(0.1, 2.0 - (epoch * 0.3) - (step * 0.05))
+                accuracy = min(0.95, 0.3 + (epoch * 0.15) + (step * 0.02))
+                
+                log_entry = {
+                    "epoch": epoch + 1,
+                    "step": step,
+                    "loss": round(loss, 4),
+                    "accuracy": round(accuracy, 4),
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                self.training_logs.append(log_entry)
+                
+                print(f"  Step {step}: Loss = {loss:.4f}, Accuracy = {accuracy:.4f}")
+                time.sleep(0.1)  # Simulate training time
+        
+        print("\\n=== Training Complete ===")
+        
+    def save_results(self):
+        """Save training results and model"""
+        results_dir = Path("uploads/training_results")
+        results_dir.mkdir(exist_ok=True)
+        
+        # Save training logs
+        logs_file = results_dir / f"training_logs_{int(time.time())}.json"
+        with open(logs_file, 'w') as f:
+            json.dump(self.training_logs, f, indent=2)
+        
+        # Save model info (simulated)
+        model_info = {
+            "hyperparameters": self.hyperparameters,
+            "training_files": self.files,
+            "final_metrics": {
+                "final_loss": self.training_logs[-1]["loss"] if self.training_logs else 0,
+                "final_accuracy": self.training_logs[-1]["accuracy"] if self.training_logs else 0,
+                "total_epochs": self.hyperparameters['epochs'],
+                "total_steps": len(self.training_logs)
+            },
+            "training_completed": datetime.now().isoformat()
         }
-      });
-      
-      await storage.createTrainingLog({
-        jobId,
-        message: "Training completed successfully",
-        level: "info"
-      });
-      
-      clearInterval(interval);
-    }
-  }, 2000);
+        
+        model_file = results_dir / f"model_info_{int(time.time())}.json"
+        with open(model_file, 'w') as f:
+            json.dump(model_info, f, indent=2)
+        
+        print(f"Results saved to: {results_dir}")
+        print(f"Training logs: {logs_file}")
+        print(f"Model info: {model_file}")
+
+def main():
+    """Main training function"""
+    hyperparameters = ${JSON.stringify(hyperparameters)}
+    files = ${JSON.stringify(files)}
+    
+    print("=== LLM Fine-tuning Training ===")
+    print(f"Start time: {datetime.now()}")
+    
+    trainer = LLMTrainer(hyperparameters, files)
+    
+    try:
+        trainer.load_data()
+        trainer.setup_model()
+        trainer.train_model()
+        trainer.save_results()
+        
+        print("\\n=== Training Successful ===")
+        
+    except Exception as e:
+        print(f"\\nTraining failed: {e}")
+        raise
+
+if __name__ == "__main__":
+    main()
+`;
 }
