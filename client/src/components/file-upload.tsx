@@ -89,30 +89,47 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
 
       // Show individual file success messages
       if (result.files && Array.isArray(result.files)) {
-        result.files.forEach((file: any) => {
-          toast({
-            title: `${file.originalName} uploaded successfully`,
-            description: `File processed and Python script generated.`,
-          });
+        result.files.forEach((file: any, index: number) => {
+          // Use setTimeout to stagger the toasts
+          setTimeout(() => {
+            toast({
+              title: `${file.originalName} uploaded successfully`,
+              description: `File processed and Python script generated.`,
+              duration: 4000,
+            });
+          }, index * 500);
         });
+        
+        // Also show a browser alert as backup
+        const fileNames = result.files.map((f: any) => f.originalName).join(', ');
+        alert(`Files uploaded successfully: ${fileNames}`);
       } else {
         // Fallback success message
-        selectedFiles.forEach((file) => {
-          toast({
-            title: `${file.name} uploaded successfully`,
-            description: `File processed and Python script generated.`,
-          });
+        selectedFiles.forEach((file, index) => {
+          setTimeout(() => {
+            toast({
+              title: `${file.name} uploaded successfully`,
+              description: `File processed and Python script generated.`,
+              duration: 4000,
+            });
+          }, index * 500);
         });
+        
+        const fileNames = selectedFiles.map(f => f.name).join(', ');
+        alert(`Files uploaded successfully: ${fileNames}`);
       }
       
       onFilesUploaded(selectedFiles);
       setSelectedFiles([]);
     } catch (error) {
+      console.error("Upload error:", error);
       toast({
         title: "Upload failed",
         description: "Failed to upload files. Please try again.",
         variant: "destructive",
+        duration: 4000,
       });
+      alert("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
