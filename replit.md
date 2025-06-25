@@ -9,12 +9,12 @@ A minimalist no-code web platform for fine-tuning Large Language Models. Built w
 
 ## Recent Changes
 
+- ✅ **Static GPT-2 Script** (Jun 25): Created single gpt2_tuning.py file at application startup instead of dynamic generation
+- ✅ **Parameter-Based Training** (Jun 25): GPT-2 script now receives uploaded file content as command-line parameters
+- ✅ **Startup Initialization** (Jun 25): Application creates static gpt2_tuning.py on server startup
+- ✅ **Content Passing** (Jun 25): Uploaded file content passed directly to static script as dataset input
 - ✅ **Code Architecture Split** (Jun 25): Separated routes.ts into routes.ts and tuner.ts for better organization
-- ✅ **GPT-2 Integration** (Jun 25): Integrated uploaded file content directly into GPT-2 fine-tuning pipeline
-- ✅ **Tuner Module** (Jun 25): Created dedicated tuner.ts with tuner_trigger method for GPT-2 script generation
-- ✅ **File Content Processing** (Jun 25): Routes.ts reads uploaded files and passes content to tuner_trigger
-- ✅ **Code Cleanup** (Jun 25): Removed unnecessary files and duplicate Python script generation code
-- ✅ **Enhanced Upload Flow** (Jun 25): File upload now triggers parallel GPT-2 tuning script generation
+- ✅ **Tuner Module** (Jun 25): Created dedicated tuner.ts with tuner_trigger method for content processing
 - ✅ **Simplified Architecture** (Jun 25): Removed unnecessary components and database complexity
 
 ## Project Architecture

@@ -1,24 +1,4 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import fs from "fs";
-import { createServer } from "http";
-
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-// Ensure uploads directory exists
-if (!fs.existsSync("uploads")) {
-  fs.mkdirSync("uploads", { recursive: true });
-}
-
-// Create static GPT-2 tuning script on startup
-function createStaticGPT2Script() {
-  const scriptPath = "gpt2_tuning.py";
-  
-  if (!fs.existsSync(scriptPath)) {
-    const scriptContent = `#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Static GPT-2 Fine-tuning Script
 This script receives uploaded file content as dataset input
@@ -64,10 +44,10 @@ def prepare_dataset(file_content, file_type=".txt", file_name="uploaded_file"):
                 texts.append(str(data))
         except json.JSONDecodeError:
             # Fallback to raw content
-            texts = [line.strip() for line in file_content.split('\\n') if line.strip()]
+            texts = [line.strip() for line in file_content.split('\n') if line.strip()]
     
     elif file_type == '.csv':
-        lines = file_content.split('\\n')
+        lines = file_content.split('\n')
         if len(lines) > 1:  # Skip header
             for line in lines[1:]:
                 if line.strip():
@@ -75,7 +55,7 @@ def prepare_dataset(file_content, file_type=".txt", file_name="uploaded_file"):
                     texts.append(line.strip())
     
     elif file_type == '.jsonl':
-        for line in file_content.split('\\n'):
+        for line in file_content.split('\n'):
             if line.strip():
                 try:
                     data = json.loads(line)
@@ -87,7 +67,7 @@ def prepare_dataset(file_content, file_type=".txt", file_name="uploaded_file"):
     
     else:  # Default for .txt and other text files
         # For text files, split by lines or sentences
-        texts = [line.strip() for line in file_content.split('\\n') if line.strip() and len(line.strip()) > 10]
+        texts = [line.strip() for line in file_content.split('\n') if line.strip() and len(line.strip()) > 10]
     
     print(f"Prepared {len(texts)} text samples for training")
     if texts:
@@ -101,7 +81,7 @@ def prepare_dataset(file_content, file_type=".txt", file_name="uploaded_file"):
 
 def clean_text(example):
     """Clean text data"""
-    example['text'] = example['text'].strip().replace('\\n', ' ')
+    example['text'] = example['text'].strip().replace('\n', ' ')
     return example
 
 def tokenize_function(examples, tokenizer):
@@ -190,72 +170,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-`;
-    
-    fs.writeFileSync(scriptPath, scriptContent);
-    log(`Created static GPT-2 tuning script: ${scriptPath}`);
-  } else {
-    log(`Static GPT-2 tuning script already exists: ${scriptPath}`);
-  }
-}
-
-// Initialize static script
-createStaticGPT2Script();
-
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
-
-(async () => {
-  registerRoutes(app);
-
-  // Error handling middleware
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  const server = createServer(app);
-
-  // importantly only setup vite in development and after everything else
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  // Start the server
-  const port = 5000;
-  server.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
-  });
-})();

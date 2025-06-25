@@ -9,172 +9,44 @@ export interface TunerOptions {
 }
 
 export function tuner_trigger(options: TunerOptions): string {
-  const { fileName, fileType, content, parsedData } = options;
+  const { fileName, fileType, content } = options;
   
-  // Generate Python script for GPT-2 fine-tuning
-  const pythonScript = generateGPT2TuningScript(fileName, fileType, content, parsedData);
+  // Save the content to a temporary file for processing
+  const contentPath = path.join("uploads", `content_${Date.now()}_${fileName.replace(/\.[^/.]+$/, "")}.txt`);
+  fs.writeFileSync(contentPath, content);
   
-  // Save the script
-  const scriptPath = path.join("uploads", `gpt2_tuning_${Date.now()}_${fileName.replace(/\.[^/.]+$/, "")}.py`);
-  fs.writeFileSync(scriptPath, pythonScript);
+  console.log(`🔧 Saved content for GPT-2 tuning: ${contentPath}`);
+  console.log(`📝 File: ${fileName} (${fileType})`);
+  console.log(`📊 Content size: ${content.length} characters`);
   
-  console.log(`🔧 Generated GPT-2 tuning script: ${scriptPath}`);
-  
-  return scriptPath;
+  // Return the path to the static GPT-2 script and content file
+  return JSON.stringify({
+    tuningScript: "gpt2_tuning.py",
+    contentFile: contentPath,
+    fileName: fileName,
+    fileType: fileType
+  });
 }
 
-function generateGPT2TuningScript(fileName: string, fileType: string, content: string, parsedData?: any): string {
-  return `#!/usr/bin/env python3
-"""
-GPT-2 Fine-tuning Script for ${fileName}
-Generated on: ${new Date().toISOString()}
-File type: ${fileType}
-Uses uploaded file data instead of WikiText dataset
-"""
-
-# Install dependencies
-import subprocess
-import sys
-
-def install_packages():
-    packages = ['datasets', 'huggingface_hub', 'fsspec', 'transformers', 'torch']
-    for package in packages:
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-U', package])
-
-# Uncomment the line below to install packages
-# install_packages()
-
-# Import libraries
-from datasets import Dataset
-from transformers import AutoTokenizer, GPT2LMHeadModel, TrainingArguments, Trainer, DataCollatorForLanguageModeling
-import json
-
-# File content embedded from upload
-file_content = """${content.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"""
-
-def prepare_dataset():
-    """Convert uploaded file content to training dataset"""
-    print("Preparing dataset from uploaded file: ${fileName}")
-    
-    # Parse content based on file type
-    texts = []
-    ${fileType === '.json' ? `
-    try:
-        data = json.loads(file_content)
-        if isinstance(data, list):
-            for item in data:
-                if isinstance(item, dict):
-                    # Extract text from common fields
-                    text = item.get('text', '') or item.get('content', '') or item.get('description', '') or str(item)
-                    if text.strip():
-                        texts.append(text.strip())
-                else:
-                    texts.append(str(item))
-        else:
-            texts.append(str(data))
-    except:
-        # Fallback to raw content
-        texts = [line.strip() for line in file_content.split('\\n') if line.strip()]
-    ` : fileType === '.csv' ? `
-    lines = file_content.split('\\n')
-    if len(lines) > 1:  # Skip header
-        for line in lines[1:]:
-            if line.strip():
-                # For CSV, combine all columns as text
-                texts.append(line.strip())
-    ` : fileType === '.jsonl' ? `
-    for line in file_content.split('\\n'):
-        if line.strip():
-            try:
-                data = json.loads(line)
-                text = data.get('text', '') or data.get('content', '') or str(data)
-                if text.strip():
-                    texts.append(text.strip())
-            except:
-                texts.append(line.strip())
-    ` : `
-    # For text files, split by lines or sentences
-    texts = [line.strip() for line in file_content.split('\\n') if line.strip() and len(line.strip()) > 10]
-    `}
-    
-    print(f"Prepared {len(texts)} text samples for training")
-    if texts:
-        print(f"Sample text: {texts[0][:100]}...")
-    
-    # Create dataset
-    dataset_dict = {"text": texts}
-    dataset = Dataset.from_dict(dataset_dict)
-    
-    return dataset
-
-# Clean dataset
-def clean_text(example):
-    example['text'] = example['text'].strip().replace('\\n', ' ')
-    return example
-
-# Load pretrained GPT-2 tokenizer and model
-print("Loading GPT-2 model and tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained("gpt2")
-tokenizer.pad_token = tokenizer.eos_token
-model = GPT2LMHeadModel.from_pretrained("gpt2")
-
-# Prepare custom dataset
-dataset = prepare_dataset()
-dataset = dataset.map(clean_text)
-
-# Tokenize the dataset
-def tokenize_function(examples):
-    return tokenizer(
-        examples["text"],
-        truncation=True,
-        padding="max_length",
-        max_length=128
-    )
-
-print("Tokenizing dataset...")
-tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["text"])
-
-# Setup data collator
-data_collator = DataCollatorForLanguageModeling(
-    tokenizer=tokenizer,
-    mlm=False  # For causal language modeling
-)
-
-# Define training arguments (will be replaced with user hyperparameters)
-training_args = TrainingArguments(
-    output_dir="./gpt2_finetuned_output",
-    per_device_train_batch_size=4,
-    num_train_epochs=3,
-    save_steps=500,
-    logging_steps=100,
-    report_to="none"  # Disable wandb
-)
-
-# Define Trainer
-print("Setting up trainer...")
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    data_collator=data_collator,
-    train_dataset=tokenized_dataset,
-    tokenizer=tokenizer
-)
-
-if __name__ == "__main__":
-    print("Starting GPT-2 fine-tuning with uploaded data...")
-    print(f"Training on {len(tokenized_dataset)} samples")
-    
-    # Fine-tune the model
-    trainer.train()
-    
-    # Save the fine-tuned model and tokenizer
-    print("Saving fine-tuned model...")
-    model.save_pretrained("gpt2_finetuned")
-    tokenizer.save_pretrained("gpt2_finetuned")
-    
-    print("Fine-tuning completed successfully!")
-    print("Model saved to: gpt2_finetuned/")
-`;
+export function callGPT2TuningScript(fileName: string, fileType: string, content: string, hyperparameters?: any): string {
+  // Create a command to call the static GPT-2 script with parameters
+  const params = [
+    `--file_name "${fileName}"`,
+    `--file_type "${fileType}"`,
+    `--file_content "${content.replace(/"/g, '\\"')}"`,
+  ];
+  
+  if (hyperparameters) {
+    if (hyperparameters.batch_size) params.push(`--batch_size ${hyperparameters.batch_size}`);
+    if (hyperparameters.epochs) params.push(`--epochs ${hyperparameters.epochs}`);
+    if (hyperparameters.learning_rate) params.push(`--learning_rate ${hyperparameters.learning_rate}`);
+  }
+  
+  const command = `python3 gpt2_tuning.py ${params.join(' ')}`;
+  
+  console.log(`🔧 GPT-2 tuning command: ${command.substring(0, 100)}...`);
+  
+  return command;
 }
 
 export function generateTrainingScript(hyperparameters: any, files: string[]): string {

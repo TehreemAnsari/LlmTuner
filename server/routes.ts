@@ -83,8 +83,8 @@ export function registerRoutes(app: Express) {
           content = '';
         }
         
-        // Call tuner_trigger in parallel to generate GPT-2 tuning script
-        const tuningScriptPath = tuner_trigger({
+        // Call tuner_trigger in parallel to prepare content for GPT-2 tuning
+        const tuningInfo = tuner_trigger({
           fileName: originalName,
           fileType: ext,
           content: content,
@@ -96,7 +96,7 @@ export function registerRoutes(app: Express) {
           size: file.size,
           type: ext,
           processedAt: new Date().toISOString(),
-          tuningScript: tuningScriptPath,
+          tuningInfo: JSON.parse(tuningInfo),
           contentPreview: content.substring(0, 200) + (content.length > 200 ? '...' : '')
         });
       }
