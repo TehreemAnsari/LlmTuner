@@ -54,13 +54,18 @@ async function executeActualGPT2Script(fileName: string, fileType: string, conte
     
     if (stdout) {
       console.log(`\n=== GPT-2 Script Output ===`);
-      console.log(stdout);
+      // Split by lines and log each line separately for better formatting
+      stdout.split('\n').forEach(line => {
+        if (line.trim()) console.log(line);
+      });
       console.log(`========================\n`);
     }
     
     if (stderr) {
       console.log(`\n=== GPT-2 Script Errors ===`);
-      console.log(stderr);
+      stderr.split('\n').forEach(line => {
+        if (line.trim()) console.log(line);
+      });
       console.log(`=========================\n`);
     }
     

@@ -9,6 +9,9 @@ A minimalist no-code web platform for fine-tuning Large Language Models. Built w
 
 ## Recent Changes
 
+- ✅ **Actual Python Script Execution** (Jun 25): tuner.ts now calls real gpt2_tuning.py instead of simulation
+- ✅ **Enhanced Dataset Logging** (Jun 25): Python script logs first 5 dataset samples with 150-character previews
+- ✅ **Improved Console Output** (Jun 25): GPT-2 script output properly displayed in Replit console
 - ✅ **Static GPT-2 Script** (Jun 25): Created single gpt2_tuning.py file at application startup instead of dynamic generation
 - ✅ **Parameter-Based Training** (Jun 25): GPT-2 script now receives uploaded file content as command-line parameters
 - ✅ **Startup Initialization** (Jun 25): Application creates static gpt2_tuning.py on server startup
