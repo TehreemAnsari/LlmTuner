@@ -92,6 +92,12 @@ def prepare_dataset(file_content, file_type=".txt", file_name="uploaded_file"):
     print(f"Prepared {len(texts)} text samples for training")
     if texts:
         print(f"Sample text: {texts[0][:100]}...")
+        
+        # Print first 5 dataset samples for verification
+        print("\\n=== First 5 Dataset Samples ===")
+        for i, text in enumerate(texts[:5]):
+            print(f"Sample {i+1}: {text[:150]}...")
+        print("===============================\\n")
     
     # Create dataset
     dataset_dict = {"text": texts}

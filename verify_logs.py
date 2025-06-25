@@ -29,6 +29,13 @@ if os.path.exists(content_file):
     print(f"Prepared {len(texts)} text samples for training")
     if texts:
         print(f"Sample text: {texts[0][:100]}...")
+        
+        # Print first 5 dataset samples for verification
+        print("\n=== First 5 Dataset Samples ===")
+        for i, text in enumerate(texts[:5]):
+            print(f"Sample {i+1}: {text[:150]}...")
+        print("===============================\n")
+        
         print(f"Last text sample: {texts[-1][:100]}...")
     
     # Simulate dataset creation
