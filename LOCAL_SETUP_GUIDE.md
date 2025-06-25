@@ -257,15 +257,25 @@ Copy these files from the Replit project to your local directory:
 npm run dev
 
 # This will:
-# 1. Start Express server on port 5000
+# 1. Start Express server on port 3001 (or PORT environment variable)
 # 2. Create gpt2_tuning.py automatically
 # 3. Handle file uploads and Python script execution
+```
+
+### Alternative Port (if still getting conflicts)
+```bash
+# Use a specific port
+PORT=3002 npm run dev
+
+# Or kill existing processes using port 5000
+lsof -ti:5000 | xargs kill -9
+npm run dev
 ```
 
 ### Open in Browser
 ```bash
 # Navigate to:
-http://localhost:5000
+http://localhost:3001
 
 # The application should load with:
 # - File upload interface
@@ -343,7 +353,14 @@ npm start
 ## Troubleshooting
 
 ### Common Issues
-1. **Port conflicts**: Change ports in vite.config.ts if 5000/5173 are in use
+1. **Port conflicts**: 
+   - If you get "EADDRINUSE" error, kill the process using the port:
+   ```bash
+   # Find process using port 5000 (or 3001)
+   lsof -ti:5000 | xargs kill -9
+   # Or use a different port by setting environment variable
+   PORT=3001 npm run dev
+   ```
 2. **Permission errors**: Ensure uploads/ directory has write permissions
 3. **Python not found**: Verify Python is in PATH or use full python path
 4. **Module errors**: Run `npm install` to ensure all dependencies are installed
@@ -351,7 +368,7 @@ npm start
 ### Verify Setup
 ```bash
 # Check if all services are running
-curl http://localhost:5000/api/health  # Should return server status
+curl http://localhost:3001/api/health  # Should return server status
 ```
 
 Your LLM Tuner platform is now ready for local development with full file upload, dataset processing, and GPT-2 script integration functionality!
