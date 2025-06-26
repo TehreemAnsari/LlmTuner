@@ -1,0 +1,9 @@
+transformers
+datasets
+torch
+scikit-learn
+huggingface_hub
+fsspec
+# Block TensorFlow
+tensorflow==2.13.0  # optional, if you ever need it
+keras<3.0           # prevent future incompatibility
