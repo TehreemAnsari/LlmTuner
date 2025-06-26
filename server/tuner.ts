@@ -41,9 +41,9 @@ export function tuner_trigger(options: TunerOptions): string {
 }
 
 async function executeActualGPT2Script(fileName: string, fileType: string, content: string, hyperparameters?: any) {
-  console.log(`\n🚀 Executing actual GPT-2 script...`);
-  console.log(`📄 File: ${fileName}`);
-  console.log(`📝 Type: ${fileType}`);
+  // console.log(`\n🚀 Executing actual GPT-2 script...`);
+  // console.log(`📄 File: ${fileName}`);
+  // console.log(`📝 Type: ${fileType}`);
   
   try {
     // Escape content for command line - write to temp file instead
@@ -56,7 +56,7 @@ async function executeActualGPT2Script(fileName: string, fileType: string, conte
     if (hyperparameters) {
       const jsonStr = JSON.stringify(hyperparameters).replace(/"/g, '\\"');
       command += ` --hyperparameters "${jsonStr}"`;
-      console.log(`🎛️ Passing hyperparameters to GPT-2 script:`, hyperparameters);
+      //console.log(`🎛️ Passing hyperparameters to GPT-2 script:`, hyperparameters);
     }
     
     

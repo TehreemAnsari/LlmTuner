@@ -122,8 +122,8 @@ export function registerRoutes(app: Express) {
       // Validate hyperparameters
       const validatedParams = hyperparametersSchema.parse(hyperparameters);
       
-      console.log(`🎯 Starting training with hyperparameters:`, validatedParams);
-      console.log(`📂 Training files:`, files);
+      // console.log(`🎯 Starting training with hyperparameters:`, validatedParams);
+      // console.log(`📂 Training files:`, files);
       
       // Find uploaded files and trigger training with hyperparameters
       const processedFiles = [];
@@ -140,7 +140,7 @@ export function registerRoutes(app: Express) {
           const content = fs.readFileSync(contentFile, 'utf-8');
           const ext = path.extname(fileName).toLowerCase();
           
-          console.log(`🔥 Triggering training for ${fileName} with hyperparameters`);
+          //console.log(`🔥 Triggering training for ${fileName} with hyperparameters`);
           
           // Call tuner_trigger with hyperparameters
           const tuningInfo = tuner_trigger({

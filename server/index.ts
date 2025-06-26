@@ -260,7 +260,7 @@ app.use((req, res, next) => {
   }
 
   // Start the server
-  const port = Number(process.env.PORT) || 5000;  // 5000 is the default port for the server
+  const port = Number(process.env.PORT) || 3001;  // 5000 is the default port for the server
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });

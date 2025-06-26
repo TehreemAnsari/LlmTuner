@@ -3,9 +3,12 @@
 GPT-2 Fine-tuning Script with Dataset Logging
 Created at application startup for LLM Tuner Platform
 """
+import debugpy
+debugpy.listen(("localhost", 5678))
+print("Waiting for debugger to attach...")
+debugpy.wait_for_client()
 
 import os
-
 os.environ["TRANSFORMERS_NO_TF"] = "1"  # 🔥 Prevent TensorFlow/Keras issues
 
 import sys
@@ -78,68 +81,73 @@ def read_data(file_content, file_type):
     return {"text": texts}
 
 
-# def train_model(dataset_dict):
-#     from datasets import Dataset
-#     from transformers import AutoTokenizer, GPT2LMHeadModel
-#     from transformers.trainer import Trainer
-#     from transformers.training_args import TrainingArguments
-#     from transformers.data.data_collator import DataCollatorForLanguageModeling
+def train_model(dataset_dict, hyperparams = None):
+    from datasets import Dataset
+    from transformers import AutoTokenizer, GPT2LMHeadModel
+    from transformers.trainer import Trainer
+    from transformers.training_args import TrainingArguments
+    from transformers.data.data_collator import DataCollatorForLanguageModeling
 
-#     # Convert to Hugging Face Dataset
-#     dataset = Dataset.from_dict(dataset_dict)
-#     print("✅ Converted to Hugging Face dataset")
+    # Convert to Hugging Face Dataset
+    dataset = Dataset.from_dict(dataset_dict)
+    print("\n=== 🔍 First 5 Dataset Samples ===")
+    for i in range(min(5, len(dataset))):
+        print(f"Sample {i+1}: {dataset[i]}")
+    print("===============================\n")
 
-#     # Load tokenizer and model
-#     tokenizer = AutoTokenizer.from_pretrained("gpt2")
-#     tokenizer.pad_token = tokenizer.eos_token
-#     model = GPT2LMHeadModel.from_pretrained("gpt2")
-#     print("✅ Model and tokenizer loaded")
+    #print("✅ Converted to Hugging Face dataset")
 
-#     # Tokenize
-#     def tokenize(example):
-#         return tokenizer(
-#             example["text"],
-#             truncation=True,
-#             padding="max_length",
-#             max_length=128
-#         )
+    print(f"📊 Hyperparameters loaded------>: {hyperparams}")
+    # Load tokenizer and model
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    tokenizer.pad_token = tokenizer.eos_token
+    model = GPT2LMHeadModel.from_pretrained("gpt2")
+    print("✅ Model and tokenizer loaded")
 
-#     tokenized = dataset.map(tokenize, batched=True, remove_columns=["text"])
-#     print("✅ Tokenization complete")
+    # Tokenize
+    def tokenize(example):
+        return tokenizer(
+            example["text"],
+            truncation=True,
+            padding="max_length",
+            max_length=128
+        )
 
-#     # Data collator
-#     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    tokenized = dataset.map(tokenize, batched=True, remove_columns=["text"])
+    print("✅ Tokenization complete")
 
-#     # Training config
-#     training_args = TrainingArguments(
-#         output_dir="./gpt2_finetuned_output",
-#         per_device_train_batch_size=4,
-#         num_train_epochs=1,
-#         save_steps=5,
-#         logging_steps=2,
-#         report_to="none"
-#     )
-#     print("✅ TrainingArguments ready")
+    # Data collator
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-#     # Trainer setup
-#     trainer = Trainer(
-#         model=model,
-#         args=training_args,
-#         data_collator=data_collator,
-#         train_dataset=tokenized.select(range(min(10000, len(tokenized))))
-#     )
-#     print("✅ Trainer created")
+    # Training config
+    training_args = TrainingArguments(
+        output_dir="./gpt2_finetuned_output",
+        per_device_train_batch_size=4,
+        num_train_epochs=1,
+        save_steps=5,
+        logging_steps=2,
+        report_to="none"
+    )
+    print("✅ TrainingArguments ready")
 
-#     # Train
-#     trainer.train()
-#     print("✅ Training complete")
+    # Trainer setup
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        data_collator=data_collator,
+        train_dataset=tokenized.select(range(min(10000, len(tokenized))))
+    )
+    print("✅ Trainer created")
 
-#     # Save model
-#     model.save_pretrained("gpt2_finetuned")
-#     tokenizer.save_pretrained("gpt2_finetuned")
-#     print("✅ Model and tokenizer saved")
+    # Train
+    trainer.train()
+    print("✅ Training complete")
 
-#     return "🎉 Model trained successfully!"
+    # Save model
+    model.save_pretrained("gpt2_finetuned")
+    tokenizer.save_pretrained("gpt2_finetuned")
+
+    return "🎉 Model trained successfully!"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GPT-2 Fine-tuning Script")
@@ -159,16 +167,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print("=== 🚀 GPT-2 Fine-tuning with Uploaded Data ===")
-    print(f"📄 File: {args.file_name}")
-    print(f"📁 Type: {args.file_type}")
+    # print("=== 🚀 GPT-2 Fine-tuning with Uploaded Data ===")
+    # print(f"📄 File: {args.file_name}")
+    # print(f"📁 Type: {args.file_type}")
 
     file_content = ""
     if args.content_file:
         try:
             with open(args.content_file, 'r', encoding='utf-8') as f:
                 file_content = f.read()
-            print(f"✅ Read content from {args.content_file}")
+            # print(f"✅ Read content from {args.content_file}")
         except Exception as e:
             print(f"❌ Error reading content file: {e}")
             sys.exit(1)
@@ -184,16 +192,16 @@ if __name__ == "__main__":
     if args.hyperparameters:
         try:
             hyperparams = json.loads(args.hyperparameters)
-            print(f"📊 Hyperparameters loaded------>: {hyperparams}")
+            # print(f"📊 Hyperparameters loaded------>: {hyperparams}")
             
-            # Show dataset samples right after hyperparameters are loaded
-            if 'texts' in dataset_dict and dataset_dict['texts']:
-                print("\n=== Dataset Samples After Hyperparameters Loaded ===")
-                for i, text in enumerate(dataset_dict['texts'][:5], 1):
-                    preview = text[:150] + "..." if len(text) > 150 else text
-                    print(f"Sample {i}: {preview}")
-                print("===================================================\n")
+            # # Show dataset samples right after hyperparameters are loaded
+            # if 'texts' in dataset_dict and dataset_dict['texts']:
+            #     print("\n=== Dataset Samples After Hyperparameters Loaded ===")
+            #     for i, text in enumerate(dataset_dict['texts'][:5], 1):
+            #         preview = text[:150] + "..." if len(text) > 150 else text
+            #         print(f"Sample {i}: {preview}")
+            #     print("===================================================\n")
         except:
             print("⚠️ Could not parse hyperparameters")
 
-# print(train_model(dataset_dict))
+    print(train_model(dataset_dict, hyperparams))
