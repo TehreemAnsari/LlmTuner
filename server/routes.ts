@@ -137,6 +137,8 @@ export function registerRoutes(app: Express) {
           const content = fs.readFileSync(contentFile, 'utf-8');
           const ext = path.extname(fileName).toLowerCase();
           
+          console.log(`🔥 Triggering training for ${fileName} with hyperparameters`);
+          
           // Call tuner_trigger with hyperparameters
           const tuningInfo = tuner_trigger({
             fileName: fileName,
@@ -149,6 +151,8 @@ export function registerRoutes(app: Express) {
             fileName,
             tuningInfo: JSON.parse(tuningInfo)
           });
+        } else {
+          console.log(`⚠️ No content file found for ${fileName}`);
         }
       }
 
