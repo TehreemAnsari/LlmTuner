@@ -1,7 +1,21 @@
 #!/usr/bin/env python3
 """
-FastAPI Backend for LLM Tuner Platform
-Clean, minimal implementation for file upload and training management
+This is a FastAPI-based Python backend designed for a platform that allows users to:
+1. Upload training data files
+2. Configure training hyperparameters
+3. Run GPT-2 fine-tuning jobs via a Python script
+4. Serve the frontend UI via static files
+
+On server start, checks for the presence of gpt2_tuning.py.
+
+If not found, creates a lightweight script that:
+
+Parses command-line arguments
+
+Loads training data from the given file
+
+Shows sample data + hyperparameters
+
 """
 
 import os
@@ -252,8 +266,8 @@ async def start_training(request: TrainingRequest):
     )
 
 # Serve static files for the frontend
-app.mount("/", StaticFiles(directory="dist/public", html=True), name="static")
+app.mount("/", StaticFiles(directory="dist", html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=3001)
