@@ -1,8 +1,4 @@
 import { useState, useRef } from "react";
-import { Upload, File, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 
 interface FileUploadProps {
   onFilesUploaded: (files: File[]) => void;
@@ -13,7 +9,6 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -40,11 +35,7 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
     );
 
     if (validFiles.length !== files.length) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload JSON, CSV, TXT, or JSONL files only.",
-        variant: "destructive",
-      });
+      alert("Please upload JSON, CSV, TXT, or JSONL files only.");
     }
 
     setSelectedFiles(prev => [...prev, ...validFiles]);
@@ -63,11 +54,7 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) {
-      toast({
-        title: "No files selected",
-        description: "Please select files to upload.",
-        variant: "destructive",
-      });
+      alert("Please select files to upload.");
       return;
     }
 
@@ -79,56 +66,25 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
         formData.append(`files`, file);
       });
 
-      const response = await apiRequest("/api/upload", {
+      const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
 
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
       const result = await response.json();
       console.log("Upload response:", result);
 
-      // Show individual file success messages
-      if (result.files && Array.isArray(result.files)) {
-        result.files.forEach((file: any, index: number) => {
-          // Use setTimeout to stagger the toasts
-          setTimeout(() => {
-            toast({
-              title: `${file.originalName} uploaded successfully`,
-              description: `File processed and Python script generated.`,
-              duration: 4000,
-            });
-          }, index * 500);
-        });
-        
-        // Also show a browser alert as backup
-        const fileNames = result.files.map((f: any) => f.originalName).join(', ');
-        alert(`Files uploaded successfully: ${fileNames}`);
-      } else {
-        // Fallback success message
-        selectedFiles.forEach((file, index) => {
-          setTimeout(() => {
-            toast({
-              title: `${file.name} uploaded successfully`,
-              description: `File processed and Python script generated.`,
-              duration: 4000,
-            });
-          }, index * 500);
-        });
-        
-        const fileNames = selectedFiles.map(f => f.name).join(', ');
-        alert(`Files uploaded successfully: ${fileNames}`);
-      }
+      const fileNames = selectedFiles.map(f => f.name).join(', ');
+      alert(`Files uploaded successfully: ${fileNames}`);
       
       onFilesUploaded(selectedFiles);
       setSelectedFiles([]);
     } catch (error) {
       console.error("Upload error:", error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload files. Please try again.",
-        variant: "destructive",
-        duration: 4000,
-      });
       alert("Upload failed. Please try again.");
     } finally {
       setUploading(false);
@@ -139,13 +95,13 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Training Data Upload</h3>
-        <Button
+        <button
           onClick={handleUpload}
           disabled={selectedFiles.length === 0 || uploading}
-          size="sm"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
         >
           {uploading ? "Uploading..." : "Upload Files"}
-        </Button>
+        </button>
       </div>
 
       <div
@@ -160,7 +116,7 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
-        <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <div className="w-12 h-12 mx-auto mb-4 text-gray-400">📁</div>
         <p className="text-lg font-medium text-gray-600 mb-2">
           Drop your training files here
         </p>
@@ -186,7 +142,7 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
               className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
             >
               <div className="flex items-center space-x-3">
-                <File className="w-5 h-5 text-gray-500" />
+                <span className="text-gray-500">📄</span>
                 <div>
                   <p className="font-medium text-gray-900">{file.name}</p>
                   <p className="text-sm text-gray-500">
@@ -194,13 +150,12 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
                   </p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
                 onClick={() => removeFile(index)}
+                className="p-1 text-gray-400 hover:text-red-500"
               >
-                <X className="w-4 h-4" />
-              </Button>
+                ✕
+              </button>
             </div>
           ))}
         </div>

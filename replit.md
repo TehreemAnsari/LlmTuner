@@ -9,6 +9,11 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 
 ## Recent Changes
 
+- ✅ **Project File Optimization** (Jun 26): Reduced total project files to exactly 20 across all folders and subfolders
+- ✅ **UI Library Removal** (Jun 26): Removed shadcn/ui components and dependencies for minimal codebase
+- ✅ **Component Simplification** (Jun 26): Converted components to use standard HTML elements and Tailwind CSS
+- ✅ **Configuration Cleanup** (Jun 26): Added essential config files (TypeScript, Tailwind, PostCSS, ESLint)
+- ✅ **Documentation Addition** (Jun 26): Added README, CHANGELOG, LICENSE, and DEPLOYMENT guides
 - ✅ **FastAPI Migration Completed** (Jun 26): Migrated from Express.js to FastAPI for cleaner Python backend
 - ✅ **Code Cleanup** (Jun 26): Removed unnecessary files, comments, and test scripts
 - ✅ **Simplified Architecture** (Jun 26): Single FastAPI server handles both API endpoints and static file serving
