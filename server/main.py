@@ -184,7 +184,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
 @app.post("/api/start-training", response_model=TrainingResponse)
 async def start_training(request: TrainingRequest):
     """Start training with hyperparameters"""
-    print(f"🎯 Starting training with hyperparameters: {request.hyperparameters.dict()}")
+    print(f"🎯 Starting training with hyperparameters: {request.hyperparameters.model_dump()}")
     print(f"📂 Training files: {request.files}")
     
     processed_files = []
@@ -202,7 +202,7 @@ async def start_training(request: TrainingRequest):
         
         # Execute GPT-2 script with hyperparameters
         ext = Path(filename).suffix.lower()
-        hyperparams_json = json.dumps(request.hyperparameters.dict())
+        hyperparams_json = json.dumps(request.hyperparameters.model_dump())
         
         cmd = [
             "python", "gpt2_tuning.py",
@@ -215,7 +215,7 @@ async def start_training(request: TrainingRequest):
         print(f"🔧 Executing: {' '.join(cmd[:6])}...")
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
             if result.stdout:
                 print("=== GPT-2 Script Output ===")

@@ -3,13 +3,6 @@
 GPT-2 Fine-tuning Script with Dataset Logging
 Created at application startup for LLM Tuner Platform
 """
-import debugpy
-debugpy.listen(("localhost", 5678))
-print("Waiting for debugger to attach...")
-debugpy.wait_for_client()
-
-import os
-os.environ["TRANSFORMERS_NO_TF"] = "1"  # 🔥 Prevent TensorFlow/Keras issues
 
 import sys
 import argparse
@@ -193,7 +186,7 @@ if __name__ == "__main__":
         try:
             hyperparams = json.loads(args.hyperparameters)
             print(f"📊 Hyperparameters loaded------>: {hyperparams}")
-            
+
             # Show dataset samples right after hyperparameters are loaded
             if 'texts' in dataset_dict and dataset_dict['texts']:
                 print("\n=== Dataset Samples After Hyperparameters Loaded ===")
