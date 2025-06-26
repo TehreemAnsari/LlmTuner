@@ -180,11 +180,19 @@ if __name__ == "__main__":
 
     dataset_dict = read_data(file_content, args.file_type)
 
-    # Optional: Parse hyperparams (not currently used)
+    # Parse hyperparams and show dataset when training starts
     if args.hyperparameters:
         try:
             hyperparams = json.loads(args.hyperparameters)
             print(f"📊 Hyperparameters loaded------>: {hyperparams}")
+            
+            # Show dataset samples right after hyperparameters are loaded
+            if 'texts' in dataset_dict and dataset_dict['texts']:
+                print("\n=== Dataset Samples After Hyperparameters Loaded ===")
+                for i, text in enumerate(dataset_dict['texts'][:5], 1):
+                    preview = text[:150] + "..." if len(text) > 150 else text
+                    print(f"Sample {i}: {preview}")
+                print("===================================================\n")
         except:
             print("⚠️ Could not parse hyperparameters")
 

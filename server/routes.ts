@@ -83,20 +83,23 @@ export function registerRoutes(app: Express) {
           content = '';
         }
         
-        // Call tuner_trigger in parallel to prepare content for GPT-2 tuning
-        const tuningInfo = tuner_trigger({
+        // Just save content for later training - no GPT-2 execution during upload
+        const contentPath = path.join("uploads", `content_${Date.now()}_${originalName.replace(/\.[^/.]+$/, "")}.txt`);
+        fs.writeFileSync(contentPath, content);
+        
+        const tuningInfo = {
+          tuningScript: "gpt2_tuning.py",
+          contentFile: contentPath,
           fileName: originalName,
-          fileType: ext,
-          content: content,
-          parsedData: parsedData
-        });
+          fileType: ext
+        };
 
         processedFiles.push({
           originalName,
           size: file.size,
           type: ext,
           processedAt: new Date().toISOString(),
-          tuningInfo: JSON.parse(tuningInfo),
+          tuningInfo: tuningInfo,
           contentPreview: content.substring(0, 200) + (content.length > 200 ? '...' : '')
         });
       }
