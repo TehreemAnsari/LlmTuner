@@ -66,7 +66,7 @@ export default function Hyperparameters({ uploadedFiles }: HyperparametersProps)
   };
 
   const estimatedTime = Math.round((hyperparameters.epochs * hyperparameters.batch_size) / 10);
-  const estimatedCost = (estimatedTime * 0.5).toFixed(2);
+  const estimatedCost = estimatedTime * 0.5;
 
   return (
     <div className="space-y-6">
@@ -96,11 +96,15 @@ export default function Hyperparameters({ uploadedFiles }: HyperparametersProps)
           <div className="grid grid-cols-3 gap-4">
             <div>
               <p className="text-sm font-medium text-gray-600">Duration</p>
-              <p className="text-lg font-bold">{estimatedTime} min</p>
+              <p className="text-lg font-bold">
+                {estimatedTime * uploadedFiles.length} min
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Cost</p>
-              <p className="text-lg font-bold">${estimatedCost}</p>
+              <p className="text-lg font-bold">
+                ${(estimatedCost * uploadedFiles.length).toFixed(2)}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Files</p>
@@ -108,6 +112,7 @@ export default function Hyperparameters({ uploadedFiles }: HyperparametersProps)
             </div>
           </div>
         </CardContent>
+
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
