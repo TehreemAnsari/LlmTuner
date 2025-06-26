@@ -4,7 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(222.2, 84%, 4.9%);
@@ -14,7 +13,7 @@
   --popover-foreground: hsl(222.2, 84%, 4.9%);
   --card: hsl(0, 0%, 100%);
   --card-foreground: hsl(222.2, 84%, 4.9%);
-  --border: hsl(214.3, 31.8%, 91.4%);
+  --border: 214.3, 31.8%, 91.4%;
   --input: hsl(214.3, 31.8%, 91.4%);
   --primary: hsl(221, 83%, 53%);
   --primary-foreground: hsl(210, 40%, 98%);
@@ -26,14 +25,14 @@
   --destructive-foreground: hsl(210, 40%, 98%);
   --ring: hsl(221, 83%, 53%);
   --radius: 0.5rem;
-  
+
   /* Brand colors */
   --brand-50: hsl(214, 100%, 97%);
   --brand-500: hsl(221, 83%, 53%);
   --brand-600: hsl(221, 83%, 45%);
   --brand-700: hsl(221, 83%, 37%);
-  
-  /* Custom colors for the design */
+
+  /* Slate colors (as variables) */
   --slate-50: hsl(210, 40%, 98%);
   --slate-100: hsl(210, 40%, 96%);
   --slate-200: hsl(214, 32%, 91%);
@@ -55,7 +54,7 @@
   --popover-foreground: hsl(210, 40%, 98%);
   --card: hsl(222.2, 84%, 4.9%);
   --card-foreground: hsl(210, 40%, 98%);
-  --border: hsl(217.2, 32.6%, 17.5%);
+  --border: 217.2, 32.6%, 17.5%;
   --input: hsl(217.2, 32.6%, 17.5%);
   --primary: hsl(221, 83%, 53%);
   --primary-foreground: hsl(222.2, 84%, 4.9%);
@@ -68,6 +67,20 @@
   --ring: hsl(221, 83%, 53%);
 }
 
+/* Define custom utilities for border, background, etc. */
+@layer utilities {
+  .border-border {
+    border-color: hsl(var(--border));
+  }
+  .bg-background {
+    background-color: hsl(var(--background));
+  }
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
+}
+
+/* Base layer styles */
 @layer base {
   * {
     @apply border-border;
@@ -78,6 +91,7 @@
   }
 }
 
+/* Font utility (optional, if you need it as a class) */
 .font-inter {
   font-family: 'Inter', sans-serif;
 }
@@ -86,28 +100,26 @@
 .slider {
   -webkit-appearance: none;
   appearance: none;
-  background: hsl(var(--slate-200));
+  background: var(--slate-200);
   outline: none;
   border-radius: 0.5rem;
 }
-
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: hsl(var(--brand-600));
+  background: var(--brand-600);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
-
 .slider::-moz-range-thumb {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: hsl(var(--brand-600));
+  background: var(--brand-600);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -116,18 +128,15 @@
 /* Custom scrollbar for logs */
 .training-logs {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--slate-600)) hsl(var(--slate-800));
+  scrollbar-color: var(--slate-600) var(--slate-800);
 }
-
 .training-logs::-webkit-scrollbar {
   width: 6px;
 }
-
 .training-logs::-webkit-scrollbar-track {
-  background: hsl(var(--slate-800));
+  background: var(--slate-800);
 }
-
 .training-logs::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--slate-600));
+  background-color: var(--slate-600);
   border-radius: 3px;
 }
