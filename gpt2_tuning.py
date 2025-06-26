@@ -3,17 +3,15 @@
 GPT-2 Fine-tuning Script with Dataset Logging
 Created at application startup for LLM Tuner Platform
 """
-import debugpy
-debugpy.listen(("localhost", 5678))
-print("Waiting for debugger to attach...")
-debugpy.wait_for_client()
 
 import os
+
 os.environ["TRANSFORMERS_NO_TF"] = "1"  # 🔥 Prevent TensorFlow/Keras issues
 
 import sys
 import argparse
 import json
+
 
 def read_data(file_content, file_type):
     """Process uploaded file content into training dataset"""
@@ -28,7 +26,9 @@ def read_data(file_content, file_type):
             if isinstance(data, list):
                 for item in data:
                     if isinstance(item, dict):
-                        text = item.get('text') or item.get('content') or item.get('description') or json.dumps(item)
+                        text = item.get('text') or item.get(
+                            'content') or item.get(
+                                'description') or json.dumps(item)
                         if text and text.strip():
                             texts.append(text.strip())
                     else:
@@ -36,8 +36,11 @@ def read_data(file_content, file_type):
             else:
                 texts.append(str(data))
         except json.JSONDecodeError:
-            texts = [line.strip() for line in file_content.split('\n') if line.strip()]
-    
+            texts = [
+                line.strip() for line in file_content.split('\n')
+                if line.strip()
+            ]
+
     elif file_type == '.csv':
         lines = file_content.split('\n')
         if len(lines) > 1:
@@ -52,14 +55,18 @@ def read_data(file_content, file_type):
             if line:
                 try:
                     data = json.loads(line)
-                    text = data.get('text') or data.get('content') or json.dumps(data)
+                    text = data.get('text') or data.get(
+                        'content') or json.dumps(data)
                     if text and text.strip():
                         texts.append(text.strip())
                 except json.JSONDecodeError:
                     texts.append(line)
 
     else:  # .txt and unknown types
-        texts = [line.strip() for line in file_content.split('\n') if line.strip() and len(line.strip()) > 10]
+        texts = [
+            line.strip() for line in file_content.split('\n')
+            if line.strip() and len(line.strip()) > 10
+        ]
 
     print(f"Prepared {len(texts)} text samples for training")
     if texts:
@@ -134,14 +141,21 @@ def read_data(file_content, file_type):
 
 #     return "🎉 Model trained successfully!"
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GPT-2 Fine-tuning Script")
-    parser.add_argument("--file_name", required=True, help="Name of the uploaded file")
-    parser.add_argument("--file_type", required=True, help="Type of the uploaded file (.txt, .json, etc.)")
-    parser.add_argument("--content_file", help="Path to file containing the uploaded content")
-    parser.add_argument("--file_content", help="Content of the uploaded file (alternative to content_file)")
-    parser.add_argument("--hyperparameters", help="JSON string of hyperparameters")
+    parser.add_argument("--file_name",
+                        required=True,
+                        help="Name of the uploaded file")
+    parser.add_argument("--file_type",
+                        required=True,
+                        help="Type of the uploaded file (.txt, .json, etc.)")
+    parser.add_argument("--content_file",
+                        help="Path to file containing the uploaded content")
+    parser.add_argument(
+        "--file_content",
+        help="Content of the uploaded file (alternative to content_file)")
+    parser.add_argument("--hyperparameters",
+                        help="JSON string of hyperparameters")
 
     args = parser.parse_args()
 
@@ -165,7 +179,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     dataset_dict = read_data(file_content, args.file_type)
-    
 
     # Optional: Parse hyperparams (not currently used)
     if args.hyperparameters:
@@ -175,4 +188,4 @@ if __name__ == "__main__":
         except:
             print("⚠️ Could not parse hyperparameters")
 
-   # print(train_model(dataset_dict))
+# print(train_model(dataset_dict))

@@ -9,6 +9,10 @@ A minimalist no-code web platform for fine-tuning Large Language Models. Built w
 
 ## Recent Changes
 
+- ✅ **Replit Migration Completed** (Jun 26): Successfully migrated project to Replit environment with proper port configuration
+- ✅ **Hyperparameters Integration Fixed** (Jun 26): Start-training endpoint now properly passes hyperparameters to GPT-2 script
+- ✅ **Port Configuration Fixed** (Jun 26): Changed default port from 3001 to 5000 for Replit workflow compatibility
+- ✅ **Training Flow Enhanced** (Jun 26): Hyperparameters are now correctly validated and passed through entire training pipeline
 - ✅ **Actual Python Script Execution** (Jun 25): tuner.ts now calls real gpt2_tuning.py instead of simulation
 - ✅ **Enhanced Dataset Logging** (Jun 25): Python script logs first 5 dataset samples with 150-character previews
 - ✅ **Improved Console Output** (Jun 25): GPT-2 script output properly displayed in Replit console

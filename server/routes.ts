@@ -119,17 +119,43 @@ export function registerRoutes(app: Express) {
       // Validate hyperparameters
       const validatedParams = hyperparametersSchema.parse(hyperparameters);
       
-      // Create training script
-      const trainingScript = generateTuningTrainingScript(validatedParams, files);
-      const scriptPath = path.join("uploads", `training_${Date.now()}.py`);
+      console.log(`🎯 Starting training with hyperparameters:`, validatedParams);
+      console.log(`📂 Training files:`, files);
       
-      fs.writeFileSync(scriptPath, trainingScript);
+      // Find uploaded files and trigger training with hyperparameters
+      const processedFiles = [];
+      
+      for (const fileName of files) {
+        // Find the corresponding uploaded file content
+        const uploadsDir = "uploads";
+        const contentFiles = fs.readdirSync(uploadsDir)
+          .filter(file => file.includes(fileName.replace(/\.[^/.]+$/, "")))
+          .filter(file => file.startsWith("content_"));
+        
+        if (contentFiles.length > 0) {
+          const contentFile = path.join(uploadsDir, contentFiles[0]);
+          const content = fs.readFileSync(contentFile, 'utf-8');
+          const ext = path.extname(fileName).toLowerCase();
+          
+          // Call tuner_trigger with hyperparameters
+          const tuningInfo = tuner_trigger({
+            fileName: fileName,
+            fileType: ext,
+            content: content,
+            parsedData: validatedParams  // Pass hyperparameters as parsedData
+          });
+          
+          processedFiles.push({
+            fileName,
+            tuningInfo: JSON.parse(tuningInfo)
+          });
+        }
+      }
 
       res.json({
-        message: "Training started successfully",
-        trainingScript: scriptPath,
+        message: "Training started successfully with hyperparameters",
         hyperparameters: validatedParams,
-        files
+        files: processedFiles
       });
     } catch (error) {
       console.error("Training error:", error);

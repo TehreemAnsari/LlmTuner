@@ -13,7 +13,7 @@ export interface TunerOptions {
 }
 
 export function tuner_trigger(options: TunerOptions): string {
-  const { fileName, fileType, content } = options;
+  const { fileName, fileType, content, parsedData } = options;
   
   // Save the content to a temporary file for processing
   const contentPath = path.join("uploads", `content_${Date.now()}_${fileName.replace(/\.[^/.]+$/, "")}.txt`);
@@ -23,8 +23,13 @@ export function tuner_trigger(options: TunerOptions): string {
   console.log(`📝 File: ${fileName} (${fileType})`);
   console.log(`📊 Content size: ${content.length} characters`);
   
+  // Check if hyperparameters are provided
+  if (parsedData && typeof parsedData === 'object' && 'learning_rate' in parsedData) {
+    console.log(`🎛️ Hyperparameters provided:`, parsedData);
+  }
+  
   // Execute the actual GPT-2 script to show dataset processing logs
-  executeActualGPT2Script(fileName, fileType, content, options.parsedData).catch(console.error);
+  executeActualGPT2Script(fileName, fileType, content, parsedData).catch(console.error);
   
   // Return the path to the static GPT-2 script and content file
   return JSON.stringify({
@@ -51,6 +56,7 @@ async function executeActualGPT2Script(fileName: string, fileType: string, conte
     if (hyperparameters) {
       const jsonStr = JSON.stringify(hyperparameters).replace(/"/g, '\\"');
       command += ` --hyperparameters "${jsonStr}"`;
+      console.log(`🎛️ Passing hyperparameters to GPT-2 script:`, hyperparameters);
     }
     
     
