@@ -2,17 +2,18 @@
 
 ## Project Overview
 
-A minimalist no-code web platform for fine-tuning Large Language Models. Built with React, Express.js, and TypeScript, providing a clean interface for uploading training data and configuring hyperparameters with Python file processing capabilities.
+A clean, minimalist web platform for fine-tuning Large Language Models. Built with React frontend and FastAPI backend, providing an intuitive interface for uploading training data and configuring hyperparameters with real Python GPT-2 processing.
 
-**Current Status**: Simplified minimalist version with file upload and hyperparameters only
-**Last Updated**: June 25, 2025
+**Current Status**: Clean FastAPI backend with React frontend, fully functional
+**Last Updated**: June 26, 2025
 
 ## Recent Changes
 
-- ✅ **Replit Migration Completed** (Jun 26): Successfully migrated project to Replit environment with proper port configuration
-- ✅ **Hyperparameters Integration Fixed** (Jun 26): Start-training endpoint now properly passes hyperparameters to GPT-2 script
-- ✅ **Port Configuration Fixed** (Jun 26): Changed default port from 3001 to 5000 for Replit workflow compatibility
-- ✅ **Training Flow Enhanced** (Jun 26): Hyperparameters are now correctly validated and passed through entire training pipeline
+- ✅ **FastAPI Migration Completed** (Jun 26): Migrated from Express.js to FastAPI for cleaner Python backend
+- ✅ **Code Cleanup** (Jun 26): Removed unnecessary files, comments, and test scripts
+- ✅ **Simplified Architecture** (Jun 26): Single FastAPI server handles both API endpoints and static file serving
+- ✅ **Hyperparameters Integration** (Jun 26): Training properly shows hyperparameters and dataset samples
+- ✅ **Port Configuration** (Jun 26): Standardized on port 5000 for unified frontend/backend serving
 - ✅ **Actual Python Script Execution** (Jun 25): tuner.ts now calls real gpt2_tuning.py instead of simulation
 - ✅ **Enhanced Dataset Logging** (Jun 25): Python script logs first 5 dataset samples with 150-character previews
 - ✅ **Improved Console Output** (Jun 25): GPT-2 script output properly displayed in Replit console
@@ -28,11 +29,10 @@ A minimalist no-code web platform for fine-tuning Large Language Models. Built w
 
 ### Technology Stack
 - **Frontend**: React 18 + TypeScript + Tailwind CSS + shadcn/ui
-- **Backend**: Express.js + TypeScript + Multer for file uploads
-- **Data Layer**: In-memory storage with Drizzle ORM schema definitions
+- **Backend**: FastAPI + Python + Pydantic for data validation
+- **ML Processing**: Python with GPT-2 fine-tuning capabilities
 - **State Management**: TanStack Query for server state, React hooks for local state
-- **Validation**: Zod schemas for type-safe API contracts
-- **Build Tools**: Vite for fast development and optimized builds
+- **Build Tools**: Vite for frontend builds, Uvicorn for FastAPI server
 
 ### Key Features Implemented
 1. **Job Management**: Create, update, delete training jobs with status tracking
