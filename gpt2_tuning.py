@@ -71,68 +71,68 @@ def read_data(file_content, file_type):
     return {"text": texts}
 
 
-def train_model(dataset_dict):
-    from datasets import Dataset
-    from transformers import AutoTokenizer, GPT2LMHeadModel
-    from transformers.trainer import Trainer
-    from transformers.training_args import TrainingArguments
-    from transformers.data.data_collator import DataCollatorForLanguageModeling
+# def train_model(dataset_dict):
+#     from datasets import Dataset
+#     from transformers import AutoTokenizer, GPT2LMHeadModel
+#     from transformers.trainer import Trainer
+#     from transformers.training_args import TrainingArguments
+#     from transformers.data.data_collator import DataCollatorForLanguageModeling
 
-    # Convert to Hugging Face Dataset
-    dataset = Dataset.from_dict(dataset_dict)
-    print("✅ Converted to Hugging Face dataset")
+#     # Convert to Hugging Face Dataset
+#     dataset = Dataset.from_dict(dataset_dict)
+#     print("✅ Converted to Hugging Face dataset")
 
-    # Load tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained("gpt2")
-    tokenizer.pad_token = tokenizer.eos_token
-    model = GPT2LMHeadModel.from_pretrained("gpt2")
-    print("✅ Model and tokenizer loaded")
+#     # Load tokenizer and model
+#     tokenizer = AutoTokenizer.from_pretrained("gpt2")
+#     tokenizer.pad_token = tokenizer.eos_token
+#     model = GPT2LMHeadModel.from_pretrained("gpt2")
+#     print("✅ Model and tokenizer loaded")
 
-    # Tokenize
-    def tokenize(example):
-        return tokenizer(
-            example["text"],
-            truncation=True,
-            padding="max_length",
-            max_length=128
-        )
+#     # Tokenize
+#     def tokenize(example):
+#         return tokenizer(
+#             example["text"],
+#             truncation=True,
+#             padding="max_length",
+#             max_length=128
+#         )
 
-    tokenized = dataset.map(tokenize, batched=True, remove_columns=["text"])
-    print("✅ Tokenization complete")
+#     tokenized = dataset.map(tokenize, batched=True, remove_columns=["text"])
+#     print("✅ Tokenization complete")
 
-    # Data collator
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+#     # Data collator
+#     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-    # Training config
-    training_args = TrainingArguments(
-        output_dir="./gpt2_finetuned_output",
-        per_device_train_batch_size=4,
-        num_train_epochs=1,
-        save_steps=5,
-        logging_steps=2,
-        report_to="none"
-    )
-    print("✅ TrainingArguments ready")
+#     # Training config
+#     training_args = TrainingArguments(
+#         output_dir="./gpt2_finetuned_output",
+#         per_device_train_batch_size=4,
+#         num_train_epochs=1,
+#         save_steps=5,
+#         logging_steps=2,
+#         report_to="none"
+#     )
+#     print("✅ TrainingArguments ready")
 
-    # Trainer setup
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        data_collator=data_collator,
-        train_dataset=tokenized.select(range(min(10000, len(tokenized))))
-    )
-    print("✅ Trainer created")
+#     # Trainer setup
+#     trainer = Trainer(
+#         model=model,
+#         args=training_args,
+#         data_collator=data_collator,
+#         train_dataset=tokenized.select(range(min(10000, len(tokenized))))
+#     )
+#     print("✅ Trainer created")
 
-    # Train
-    trainer.train()
-    print("✅ Training complete")
+#     # Train
+#     trainer.train()
+#     print("✅ Training complete")
 
-    # Save model
-    model.save_pretrained("gpt2_finetuned")
-    tokenizer.save_pretrained("gpt2_finetuned")
-    print("✅ Model and tokenizer saved")
+#     # Save model
+#     model.save_pretrained("gpt2_finetuned")
+#     tokenizer.save_pretrained("gpt2_finetuned")
+#     print("✅ Model and tokenizer saved")
 
-    return "🎉 Model trained successfully!"
+#     return "🎉 Model trained successfully!"
 
 
 if __name__ == "__main__":
@@ -175,4 +175,4 @@ if __name__ == "__main__":
         except:
             print("⚠️ Could not parse hyperparameters")
 
-    print(train_model(dataset_dict))
+   # print(train_model(dataset_dict))
