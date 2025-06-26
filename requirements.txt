@@ -1,9 +1,14 @@
-transformers
+# Core libraries
+transformers[torch]  # Includes transformers, torch, and accelerate
 datasets
-torch
 scikit-learn
 huggingface_hub
 fsspec
+
+# Ensure Accelerate is available for Trainer
+accelerate>=0.26.0
 # Block TensorFlow
 tensorflow==2.13.0  # optional, if you ever need it
 keras<3.0           # prevent future incompatibility
+
+debugpy

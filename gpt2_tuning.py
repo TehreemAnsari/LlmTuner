@@ -3,6 +3,10 @@
 GPT-2 Fine-tuning Script with Dataset Logging
 Created at application startup for LLM Tuner Platform
 """
+import debugpy
+debugpy.listen(("localhost", 5678))
+print("Waiting for debugger to attach...")
+debugpy.wait_for_client()
 
 import os
 os.environ["TRANSFORMERS_NO_TF"] = "1"  # 🔥 Prevent TensorFlow/Keras issues
@@ -69,7 +73,9 @@ def read_data(file_content, file_type):
 
 def train_model(dataset_dict):
     from datasets import Dataset
-    from transformers import AutoTokenizer, GPT2LMHeadModel, Trainer, TrainingArguments
+    from transformers import AutoTokenizer, GPT2LMHeadModel
+    from transformers.trainer import Trainer
+    from transformers.training_args import TrainingArguments
     from transformers.data.data_collator import DataCollatorForLanguageModeling
 
     # Convert to Hugging Face Dataset
@@ -113,8 +119,7 @@ def train_model(dataset_dict):
         model=model,
         args=training_args,
         data_collator=data_collator,
-        train_dataset=tokenized.select(range(min(10000, len(tokenized)))),
-        tokenizer=tokenizer
+        train_dataset=tokenized.select(range(min(10000, len(tokenized))))
     )
     print("✅ Trainer created")
 
@@ -160,12 +165,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     dataset_dict = read_data(file_content, args.file_type)
-    print(train_model(dataset_dict))
+    
 
     # Optional: Parse hyperparams (not currently used)
     if args.hyperparameters:
         try:
             hyperparams = json.loads(args.hyperparameters)
-            print(f"📊 Hyperparameters loaded: {hyperparams}")
+            print(f"📊 Hyperparameters loaded------>: {hyperparams}")
         except:
             print("⚠️ Could not parse hyperparameters")
+
+    print(train_model(dataset_dict))

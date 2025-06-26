@@ -24,7 +24,7 @@ export function tuner_trigger(options: TunerOptions): string {
   console.log(`📊 Content size: ${content.length} characters`);
   
   // Execute the actual GPT-2 script to show dataset processing logs
-  executeActualGPT2Script(fileName, fileType, content).catch(console.error);
+  executeActualGPT2Script(fileName, fileType, content, options.parsedData).catch(console.error);
   
   // Return the path to the static GPT-2 script and content file
   return JSON.stringify({
@@ -35,7 +35,7 @@ export function tuner_trigger(options: TunerOptions): string {
   });
 }
 
-async function executeActualGPT2Script(fileName: string, fileType: string, content: string) {
+async function executeActualGPT2Script(fileName: string, fileType: string, content: string, hyperparameters?: any) {
   console.log(`\n🚀 Executing actual GPT-2 script...`);
   console.log(`📄 File: ${fileName}`);
   console.log(`📝 Type: ${fileType}`);
@@ -46,7 +46,13 @@ async function executeActualGPT2Script(fileName: string, fileType: string, conte
     fs.writeFileSync(tempContentFile, content);
     
     // Execute the actual gpt2_tuning.py script
-    const command = `python gpt2_tuning.py --file_name "${fileName}" --file_type "${fileType}" --content_file "${tempContentFile}"`;
+    let command = `python gpt2_tuning.py --file_name "${fileName}" --file_type "${fileType}" --content_file "${tempContentFile}"`;
+
+    if (hyperparameters) {
+      const jsonStr = JSON.stringify(hyperparameters).replace(/"/g, '\\"');
+      command += ` --hyperparameters "${jsonStr}"`;
+    }
+    
     
     console.log(`🔧 Running: ${command}`);
     
