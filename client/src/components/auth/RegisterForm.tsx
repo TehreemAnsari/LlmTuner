@@ -47,8 +47,37 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
       console.log('Google OAuth URL:', data.auth_url);
       console.log('Redirect URI:', data.redirect_uri);
       
-      // Try opening in the same window first
-      window.location.href = data.auth_url;
+      // Try popup approach first
+      const popup = window.open(
+        data.auth_url,
+        'googleAuth',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+      
+      if (!popup) {
+        // Fallback to same window if popup is blocked
+        console.log('Popup blocked, trying same window redirect');
+        window.location.href = data.auth_url;
+        return;
+      }
+      
+      // Listen for popup close or message
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          // Check if user is now logged in
+          window.location.reload();
+        }
+      }, 1000);
+      
+      // Set timeout to close popup if needed
+      setTimeout(() => {
+        if (!popup.closed) {
+          popup.close();
+          clearInterval(checkClosed);
+        }
+      }, 300000); // 5 minutes timeout
+      
     } catch (error) {
       console.error('Google OAuth error:', error);
       setError('Google login failed. Please try again.');

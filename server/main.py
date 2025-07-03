@@ -27,7 +27,7 @@ from datetime import timedelta
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -347,8 +347,40 @@ async def google_callback(code: str):
         else:
             frontend_url = "http://localhost:5000"
         
-        # Instead of redirecting with cookie, redirect with token in URL fragment
-        return RedirectResponse(f"{frontend_url}/?token={access_token}")
+        # Create a success page that closes the popup and passes the token
+        success_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Login Success</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; }}
+                .success {{ color: #28a745; }}
+            </style>
+        </head>
+        <body>
+            <div class="success">
+                <h2>✅ Login Successful!</h2>
+                <p>Redirecting you back to the application...</p>
+            </div>
+            <script>
+                // Store token in localStorage
+                localStorage.setItem('token', '{access_token}');
+                
+                // Try to close popup and redirect parent
+                if (window.opener) {{
+                    window.opener.location.href = '{frontend_url}';
+                    window.close();
+                }} else {{
+                    // Fallback: redirect in same window
+                    window.location.href = '{frontend_url}';
+                }}
+            </script>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=success_html)
         
     except Exception as e:
         print(f"Google OAuth error: {e}")
@@ -358,8 +390,27 @@ async def google_callback(code: str):
             frontend_url = f"https://{replit_domain.split(',')[0]}"
         else:
             frontend_url = "http://localhost:5000"
-        # Redirect to frontend with error
-        return RedirectResponse(f"{frontend_url}/?error=oauth_failed")
+        # Create error page for popup
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Login Error</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; }}
+                .error {{ color: #dc3545; }}
+            </style>
+        </head>
+        <body>
+            <div class="error">
+                <h2>❌ Login Failed</h2>
+                <p>There was an error during authentication. Please try again.</p>
+                <button onclick="window.close()">Close</button>
+            </div>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=error_html)
 
 @app.get("/api/auth/me", response_model=User)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
