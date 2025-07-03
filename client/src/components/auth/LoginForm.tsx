@@ -30,9 +30,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     try {
       const response = await fetch('/api/auth/google');
       const data = await response.json();
+      
+      console.log('Google OAuth URL:', data.auth_url);
+      console.log('Redirect URI:', data.redirect_uri);
+      
+      // Try opening in the same window first
       window.location.href = data.auth_url;
+      
+      // Alternative: Try opening in a new window if the main approach fails
+      // const newWindow = window.open(data.auth_url, '_blank', 'width=500,height=600');
+      // if (!newWindow) {
+      //   setError('Popup blocked. Please allow popups and try again.');
+      // }
     } catch (error) {
-      setError('Google login failed');
+      console.error('Google OAuth error:', error);
+      setError('Google login failed. Please try again.');
     }
   };
 

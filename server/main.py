@@ -375,11 +375,29 @@ async def debug_oauth():
     else:
         base_url = "http://localhost:5000"
     
+    # Test DynamoDB connection
+    try:
+        from auth import auth_manager
+        # Try to list table info
+        table_info = "Connected"
+    except Exception as e:
+        table_info = f"Error: {str(e)}"
+    
     return {
         "base_url": base_url,
         "redirect_uri": f"{base_url}/api/auth/google/callback",
         "google_client_id": os.getenv('GOOGLE_CLIENT_ID', 'NOT_SET'),
+        "google_client_secret_set": bool(os.getenv('GOOGLE_CLIENT_SECRET')),
+        "aws_access_key_set": bool(os.getenv('AWS_ACCESS_KEY_ID')),
+        "aws_secret_key_set": bool(os.getenv('AWS_SECRET_ACCESS_KEY')),
         "replit_domain": replit_domain,
+        "dynamodb_status": table_info,
+        "suggested_troubleshooting": [
+            "1. Verify Google Cloud Console has the exact redirect URI: " + f"{base_url}/api/auth/google/callback",
+            "2. Check if OAuth consent screen is configured",
+            "3. Ensure domain is added to authorized domains if needed",
+            "4. Try incognito/private browsing to bypass cache issues"
+        ]
     }
 
 @app.post("/api/upload", response_model=UploadResponse)
