@@ -9,6 +9,7 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 
 ## Recent Changes
 
+- ✅ **S3 File Storage Integration** (Jul 3): Migrated file uploads from local storage to AWS S3 bucket for secure, scalable storage
 - ✅ **Google OAuth Integration Complete** (Jul 3): Fixed popup-based OAuth flow with cross-window communication, all authentication methods now working
 - ✅ **Authentication System Implementation** (Jul 3): Added complete user authentication with email/password and Google OAuth
 - ✅ **AWS DynamoDB Integration** (Jul 3): Connected to AWS DynamoDB for secure user data storage with password hashing

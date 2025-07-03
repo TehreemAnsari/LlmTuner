@@ -24,6 +24,7 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 from datetime import timedelta
+import uuid
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
 from fastapi.staticfiles import StaticFiles
@@ -33,15 +34,71 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from authlib.integrations.starlette_client import OAuth
 import httpx
+import boto3
+from botocore.exceptions import ClientError
 
 from auth import (
     auth_manager, UserCreate, UserLogin, User, Token, GoogleUser,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
-# Ensure uploads directory exists
+# Ensure uploads directory exists (for local fallback)
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(exist_ok=True)
+
+# Initialize S3 client
+def get_s3_client():
+    """Initialize and return S3 client with AWS credentials"""
+    return boto3.client(
+        's3',
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+        region_name='us-east-1'  # Default region
+    )
+
+# S3 bucket configuration
+S3_BUCKET_NAME = 'llm-tuner-user-uploads'
+
+async def upload_to_s3(file_content: bytes, file_name: str, user_id: str, content_type: str = 'application/octet-stream') -> str:
+    """Upload file to S3 and return the S3 key"""
+    try:
+        s3_client = get_s3_client()
+        
+        # Create unique file path with user ID and timestamp
+        file_id = str(uuid.uuid4())
+        s3_key = f"users/{user_id}/uploads/{file_id}_{file_name}"
+        
+        # Upload file to S3
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=s3_key,
+            Body=file_content,
+            ContentType=content_type,
+            Metadata={
+                'user_id': user_id,
+                'original_filename': file_name,
+                'file_id': file_id
+            }
+        )
+        
+        print(f"📁 Uploaded {file_name} to S3: s3://{S3_BUCKET_NAME}/{s3_key}")
+        return s3_key
+        
+    except ClientError as e:
+        print(f"❌ S3 upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload file to S3: {str(e)}")
+
+async def download_from_s3(s3_key: str) -> bytes:
+    """Download file content from S3"""
+    try:
+        s3_client = get_s3_client()
+        
+        response = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=s3_key)
+        return response['Body'].read()
+        
+    except ClientError as e:
+        print(f"❌ S3 download error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download file from S3: {str(e)}")
 
 app = FastAPI(title="LLM Tuner Platform", version="1.0.0")
 
@@ -467,37 +524,52 @@ async def debug_oauth():
 
 @app.post("/api/upload", response_model=UploadResponse)
 async def upload_files(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)):
-    """Upload and process training files"""
+    """Upload and process training files to S3"""
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
     
     processed_files = []
+    user_id = current_user["user_id"]
     
     for file in files:
-        # Save uploaded file
-        if file.filename:
-            file_path = uploads_dir / file.filename
-            content = await file.read()
-            file_path.write_bytes(content)
-            
-            # Save content for training
-            content_str = content.decode('utf-8')
-            content_path = uploads_dir / f"content_{file.filename}"
-            content_path.write_text(content_str)
-        else:
+        if not file.filename:
             raise HTTPException(status_code=400, detail="Invalid filename")
+            
+        # Read file content
+        content = await file.read()
+        content_str = content.decode('utf-8')
+        
+        # Upload original file to S3
+        s3_key = await upload_to_s3(
+            content, 
+            file.filename, 
+            user_id, 
+            file.content_type or 'text/plain'
+        )
+        
+        # Upload content file to S3 for training (text version)
+        content_filename = f"content_{file.filename}"
+        content_s3_key = await upload_to_s3(
+            content_str.encode('utf-8'),
+            content_filename,
+            user_id,
+            'text/plain'
+        )
         
         # Get file info
-        ext = Path(file.filename or "").suffix.lower()
-        lines = len(content_str.split('\\n'))
+        ext = Path(file.filename).suffix.lower()
+        lines = len(content_str.split('\n'))
         
         print(f"📄 {file.filename}: {ext.upper()} file with {lines} lines")
+        print(f"🗂️ Stored in S3: {s3_key}")
         
         processed_files.append({
             "originalName": file.filename,
             "size": len(content),
             "type": ext,
-            "contentPreview": content_str[:200] + ("..." if len(content_str) > 200 else "")
+            "contentPreview": content_str[:200] + ("..." if len(content_str) > 200 else ""),
+            "s3_key": s3_key,
+            "content_s3_key": content_s3_key
         })
     
     return UploadResponse(
@@ -507,67 +579,94 @@ async def upload_files(files: List[UploadFile] = File(...), current_user: dict =
 
 @app.post("/api/start-training", response_model=TrainingResponse)
 async def start_training(request: TrainingRequest, current_user: dict = Depends(get_current_user)):
-    """Start training with hyperparameters"""
+    """Start training with hyperparameters using S3-stored files"""
     print(f"🎯 Starting training with hyperparameters: {request.hyperparameters.model_dump()}")
     print(f"📂 Training files: {request.files}")
     
     processed_files = []
+    user_id = current_user["user_id"]
     
     for filename in request.files:
-        content_path = uploads_dir / f"content_{filename}"
-        
-        if not content_path.exists():
-            print(f"⚠️ Content file not found for {filename}")
-            continue
-        
-        # Create temporary content file for GPT-2 script
-        temp_content_path = uploads_dir / f"temp_{filename}"
-        temp_content_path.write_text(content_path.read_text())
-        
-        # Execute GPT-2 script with hyperparameters
+        temp_content_path = None
         ext = Path(filename).suffix.lower()
-        hyperparams_json = json.dumps(request.hyperparameters.model_dump())
-        
-        cmd = [
-            "python", "gpt2_tuning.py",
-            "--file_name", filename,
-            "--file_type", ext,
-            "--content_file", str(temp_content_path),
-            "--hyperparameters", hyperparams_json
-        ]
-        
-        print(f"🔧 Executing: {' '.join(cmd[:6])}...")
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            # List objects in user's S3 folder to find the content file
+            s3_client = get_s3_client()
+            prefix = f"users/{user_id}/uploads/"
             
-            if result.stdout:
-                print("=== GPT-2 Script Output ===")
-                for line in result.stdout.strip().split('\\n'):
-                    if line.strip():
-                        print(line)
-                print("==========================")
+            response = s3_client.list_objects_v2(
+                Bucket=S3_BUCKET_NAME,
+                Prefix=prefix
+            )
             
-            if result.stderr:
-                print(f"⚠️ GPT-2 Script Errors: {result.stderr}")
-        
-        except subprocess.TimeoutExpired:
-            print("⚠️ GPT-2 script execution timed out")
-        except Exception as e:
-            print(f"❌ Error executing GPT-2 script: {e}")
-        finally:
-            # Cleanup temp file
-            if temp_content_path.exists():
-                temp_content_path.unlink()
-        
-        processed_files.append({
-            "fileName": filename,
-            "tuningInfo": {
-                "tuningScript": "gpt2_tuning.py",
+            content_s3_key = None
+            for obj in response.get('Contents', []):
+                obj_key = obj['Key']
+                # Look for content file that matches this filename
+                if f"content_{filename}" in obj_key:
+                    content_s3_key = obj_key
+                    break
+            
+            if not content_s3_key:
+                print(f"⚠️ Content file not found in S3 for {filename}")
+                continue
+            
+            # Download content from S3
+            print(f"📥 Downloading {content_s3_key} from S3...")
+            content_bytes = await download_from_s3(content_s3_key)
+            content_str = content_bytes.decode('utf-8')
+            
+            # Create temporary local file for GPT-2 script
+            temp_content_path = uploads_dir / f"temp_{filename}"
+            temp_content_path.write_text(content_str)
+            
+            # Execute GPT-2 script with hyperparameters
+            hyperparams_json = json.dumps(request.hyperparameters.model_dump())
+            
+            cmd = [
+                "python", "gpt2_tuning.py",
+                "--file_name", filename,
+                "--file_type", ext,
+                "--content_file", str(temp_content_path),
+                "--hyperparameters", hyperparams_json
+            ]
+            
+            print(f"🔧 Executing: {' '.join(cmd[:6])}...")
+            
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                
+                if result.stdout:
+                    print("=== GPT-2 Script Output ===")
+                    for line in result.stdout.strip().split('\\n'):
+                        if line.strip():
+                            print(line)
+                    print("==========================")
+                
+                if result.stderr:
+                    print(f"⚠️ GPT-2 Script Errors: {result.stderr}")
+                    
+            except subprocess.TimeoutExpired:
+                print(f"⏰ Training timeout for {filename}")
+            except Exception as e:
+                print(f"❌ Training error for {filename}: {e}")
+            
+            processed_files.append({
                 "fileName": filename,
-                "fileType": ext
-            }
-        })
+                "tuningInfo": {
+                    "tuningScript": "gpt2_tuning.py",
+                    "fileName": filename,
+                    "fileType": ext
+                }
+            })
+                    
+        except Exception as e:
+            print(f"❌ Error processing {filename} from S3: {e}")
+        finally:
+            # Clean up temporary file
+            if temp_content_path and temp_content_path.exists():
+                temp_content_path.unlink()
     
     return TrainingResponse(
         message="Training completed successfully",
