@@ -264,17 +264,32 @@ async def google_login():
     redirect_uri = f"{base_url}/api/auth/google/callback"
     client_id = os.getenv('GOOGLE_CLIENT_ID')
     
-    # Build the OAuth URL with proper parameters
+    if not client_id:
+        raise HTTPException(status_code=500, detail="Google OAuth not configured")
+    
+    # Build the OAuth URL with proper parameters and encode the redirect URI
+    import urllib.parse
+    encoded_redirect_uri = urllib.parse.quote(redirect_uri, safe='')
+    
     google_oauth_url = (
-        "https://accounts.google.com/o/oauth2/auth?"
+        "https://accounts.google.com/o/oauth2/v2/auth?"
         f"client_id={client_id}&"
-        f"redirect_uri={redirect_uri}&"
-        "scope=openid email profile&"
+        f"redirect_uri={encoded_redirect_uri}&"
+        "scope=openid%20email%20profile&"
         "response_type=code&"
-        "access_type=offline"
+        "access_type=offline&"
+        "include_granted_scopes=true"
     )
     
-    return {"auth_url": google_oauth_url}
+    return {
+        "auth_url": google_oauth_url,
+        "redirect_uri": redirect_uri,
+        "debug_info": {
+            "base_url": base_url,
+            "replit_domain": replit_domain,
+            "client_id_configured": bool(client_id)
+        }
+    }
 
 @app.get("/api/auth/google/callback")
 async def google_callback(code: str):
