@@ -539,21 +539,12 @@ async def upload_files(files: List[UploadFile] = File(...), current_user: dict =
         content = await file.read()
         content_str = content.decode('utf-8')
         
-        # Upload original file to S3
+        # Upload file to S3 (single file for both original and training content)
         s3_key = await upload_to_s3(
             content, 
             file.filename, 
             user_id, 
             file.content_type or 'text/plain'
-        )
-        
-        # Upload content file to S3 for training (text version)
-        content_filename = f"content_{file.filename}"
-        content_s3_key = await upload_to_s3(
-            content_str.encode('utf-8'),
-            content_filename,
-            user_id,
-            'text/plain'
         )
         
         # Get file info
@@ -568,8 +559,7 @@ async def upload_files(files: List[UploadFile] = File(...), current_user: dict =
             "size": len(content),
             "type": ext,
             "contentPreview": content_str[:200] + ("..." if len(content_str) > 200 else ""),
-            "s3_key": s3_key,
-            "content_s3_key": content_s3_key
+            "s3_key": s3_key
         })
     
     return UploadResponse(
@@ -600,21 +590,21 @@ async def start_training(request: TrainingRequest, current_user: dict = Depends(
                 Prefix=prefix
             )
             
-            content_s3_key = None
+            file_s3_key = None
             for obj in response.get('Contents', []):
                 obj_key = obj['Key']
-                # Look for content file that matches this filename
-                if f"content_{filename}" in obj_key:
-                    content_s3_key = obj_key
+                # Look for the original file that matches this filename
+                if filename in obj_key and not obj_key.endswith(f"content_{filename}"):
+                    file_s3_key = obj_key
                     break
             
-            if not content_s3_key:
-                print(f"⚠️ Content file not found in S3 for {filename}")
+            if not file_s3_key:
+                print(f"⚠️ File not found in S3 for {filename}")
                 continue
             
             # Download content from S3
-            print(f"📥 Downloading {content_s3_key} from S3...")
-            content_bytes = await download_from_s3(content_s3_key)
+            print(f"📥 Downloading {file_s3_key} from S3...")
+            content_bytes = await download_from_s3(file_s3_key)
             content_str = content_bytes.decode('utf-8')
             
             # Create temporary local file for GPT-2 script
