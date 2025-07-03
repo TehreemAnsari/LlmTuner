@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 interface HyperparametersProps {
   uploadedFiles: File[];
@@ -6,6 +7,7 @@ interface HyperparametersProps {
 
 export default function Hyperparameters({ uploadedFiles }: HyperparametersProps) {
   const [training, setTraining] = useState(false);
+  const { token } = useAuth();
 
   const [hyperparameters, setHyperparameters] = useState({
     learning_rate: 0.001,
@@ -33,6 +35,7 @@ export default function Hyperparameters({ uploadedFiles }: HyperparametersProps)
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           hyperparameters,

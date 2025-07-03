@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 interface FileUploadProps {
   onFilesUploaded: (files: File[]) => void;
@@ -9,6 +10,7 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { token } = useAuth();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -68,6 +70,9 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
 
       const response = await fetch("/api/upload", {
         method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
 

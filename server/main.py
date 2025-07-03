@@ -23,17 +23,51 @@ import json
 import subprocess
 from pathlib import Path
 from typing import List, Optional
+from datetime import timedelta
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from authlib.integrations.starlette_client import OAuth
+import httpx
+
+from auth import (
+    auth_manager, UserCreate, UserLogin, User, Token, GoogleUser,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 # Ensure uploads directory exists
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(exist_ok=True)
 
 app = FastAPI(title="LLM Tuner Platform", version="1.0.0")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Security
+security = HTTPBearer()
+
+# OAuth Configuration
+oauth = OAuth()
+oauth.register(
+    name='google',
+    client_id=os.getenv('GOOGLE_CLIENT_ID'),
+    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid email profile'
+    }
+)
 
 # Pydantic models for request/response
 class Hyperparameters(BaseModel):
@@ -155,8 +189,126 @@ if __name__ == "__main__":
 # Initialize GPT-2 script on startup
 create_gpt2_script()
 
+# Dependency to get current user
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get current user from JWT token"""
+    token = credentials.credentials
+    payload = auth_manager.decode_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    email = payload.get("sub")
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    user = await auth_manager.get_user_by_email(email)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+# Authentication endpoints
+@app.post("/api/auth/register", response_model=Token)
+async def register(user_data: UserCreate):
+    """Register a new user"""
+    try:
+        user = await auth_manager.create_user(user_data)
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = auth_manager.create_access_token(
+            data={"sub": user["email"]}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/auth/login", response_model=Token)
+async def login(user_data: UserLogin):
+    """Login user"""
+    user = await auth_manager.authenticate_user(user_data.email, user_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth_manager.create_access_token(
+        data={"sub": user["email"]}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/auth/google")
+async def google_login():
+    """Get Google OAuth URL"""
+    redirect_uri = "http://localhost:5000/api/auth/google/callback"
+    client_id = os.getenv('GOOGLE_CLIENT_ID')
+    google_oauth_url = f"https://accounts.google.com/o/oauth2/auth?client_id={client_id}&redirect_uri={redirect_uri}&scope=openid%20email%20profile&response_type=code"
+    return {"auth_url": google_oauth_url}
+
+@app.get("/api/auth/google/callback")
+async def google_callback(code: str):
+    """Handle Google OAuth callback"""
+    try:
+        # Exchange code for token
+        token_url = "https://oauth2.googleapis.com/token"
+        data = {
+            "client_id": os.getenv('GOOGLE_CLIENT_ID'),
+            "client_secret": os.getenv('GOOGLE_CLIENT_SECRET'),
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": "http://localhost:5000/api/auth/google/callback"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(token_url, data=data)
+            token_data = response.json()
+        
+        # Get user info
+        user_info_url = f"https://www.googleapis.com/oauth2/v1/userinfo?access_token={token_data['access_token']}"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(user_info_url)
+            user_info = response.json()
+        
+        # Create or get user
+        google_user = GoogleUser(
+            email=user_info["email"],
+            name=user_info["name"],
+            picture=user_info["picture"],
+            sub=user_info["id"]
+        )
+        
+        user = await auth_manager.create_google_user(google_user)
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = auth_manager.create_access_token(
+            data={"sub": user["email"]}, expires_delta=access_token_expires
+        )
+        
+        # Redirect to frontend with token
+        return FileResponse("dist/index.html", headers={"Set-Cookie": f"access_token={access_token}; HttpOnly; Path=/"})
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Google OAuth failed: {str(e)}")
+
+@app.get("/api/auth/me", response_model=User)
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+    """Get current user information"""
+    return User(**current_user)
+
 @app.post("/api/upload", response_model=UploadResponse)
-async def upload_files(files: List[UploadFile] = File(...)):
+async def upload_files(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)):
     """Upload and process training files"""
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
@@ -196,7 +348,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
     )
 
 @app.post("/api/start-training", response_model=TrainingResponse)
-async def start_training(request: TrainingRequest):
+async def start_training(request: TrainingRequest, current_user: dict = Depends(get_current_user)):
     """Start training with hyperparameters"""
     print(f"🎯 Starting training with hyperparameters: {request.hyperparameters.model_dump()}")
     print(f"📂 Training files: {request.files}")
