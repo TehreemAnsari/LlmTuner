@@ -9,6 +9,9 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 
 ## Recent Changes
 
+- ✅ **Deployment Configuration Fixed** (Jul 3): Resolved deployment issues by creating proper build scripts and copying Python files to dist directory
+- ✅ **Production Scripts Created** (Jul 3): Added build.sh, deploy-check.py, and start-production.py for robust deployment options
+- ✅ **Deployment Documentation Updated** (Jul 3): Comprehensive deployment guide with multiple startup options and environment variables
 - ✅ **S3 File Storage Integration** (Jul 3): Migrated file uploads from local storage to AWS S3 bucket for secure, scalable storage
 - ✅ **Google OAuth Integration Complete** (Jul 3): Fixed popup-based OAuth flow with cross-window communication, all authentication methods now working
 - ✅ **Authentication System Implementation** (Jul 3): Added complete user authentication with email/password and Google OAuth
