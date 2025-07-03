@@ -369,7 +369,21 @@ async def google_callback(code: str):
                 
                 // Try to close popup and redirect parent
                 if (window.opener) {{
-                    window.opener.location.href = '{frontend_url}';
+                    // Send message to parent window
+                    window.opener.postMessage({{
+                        type: 'GOOGLE_AUTH_SUCCESS',
+                        token: '{access_token}'
+                    }}, '*');
+                    
+                    // Try to reload parent window
+                    try {{
+                        window.opener.location.reload();
+                    }} catch (e) {{
+                        // If reload fails, just navigate to home
+                        window.opener.location.href = '{frontend_url}';
+                    }}
+                    
+                    // Close popup
                     window.close();
                 }} else {{
                     // Fallback: redirect in same window

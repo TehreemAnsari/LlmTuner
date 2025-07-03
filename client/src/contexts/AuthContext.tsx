@@ -59,13 +59,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     
     // Check for existing token on app start
-    const savedToken = localStorage.getItem('access_token');
+    const savedToken = localStorage.getItem('access_token') || localStorage.getItem('token');
     if (savedToken) {
       setToken(savedToken);
       fetchUserInfo(savedToken);
     } else {
       setIsLoading(false);
     }
+    
+    // Listen for storage changes (from popup window)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token' && e.newValue) {
+        console.log('Token received from popup:', e.newValue);
+        setToken(e.newValue);
+        fetchUserInfo(e.newValue);
+        // Also save to access_token for consistency
+        localStorage.setItem('access_token', e.newValue);
+      }
+    };
+    
+    // Listen for messages from popup window
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'GOOGLE_AUTH_SUCCESS' && e.data.token) {
+        console.log('Token received from popup message:', e.data.token);
+        setToken(e.data.token);
+        fetchUserInfo(e.data.token);
+        localStorage.setItem('access_token', e.data.token);
+        localStorage.setItem('token', e.data.token);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   const fetchUserInfo = async (authToken: string) => {
