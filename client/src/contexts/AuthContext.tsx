@@ -37,6 +37,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check for OAuth token in URL parameters (from Google OAuth redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthToken = urlParams.get('token');
+    const oauthError = urlParams.get('error');
+    
+    if (oauthToken) {
+      // Save OAuth token and clear URL parameters
+      localStorage.setItem('access_token', oauthToken);
+      setToken(oauthToken);
+      fetchUserInfo(oauthToken);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+    
+    if (oauthError) {
+      console.error('OAuth error:', oauthError);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
     // Check for existing token on app start
     const savedToken = localStorage.getItem('access_token');
     if (savedToken) {

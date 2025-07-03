@@ -27,7 +27,7 @@ from datetime import timedelta
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -251,15 +251,44 @@ async def login(user_data: UserLogin):
 @app.get("/api/auth/google")
 async def google_login():
     """Get Google OAuth URL"""
-    redirect_uri = "http://localhost:5000/api/auth/google/callback"
+    # Use the current domain for the redirect URI
+    import os
+    
+    # Check if we're running on Replit
+    replit_domain = os.getenv('REPLIT_DOMAINS')
+    if replit_domain:
+        base_url = f"https://{replit_domain.split(',')[0]}"
+    else:
+        base_url = "http://localhost:5000"
+    
+    redirect_uri = f"{base_url}/api/auth/google/callback"
     client_id = os.getenv('GOOGLE_CLIENT_ID')
-    google_oauth_url = f"https://accounts.google.com/o/oauth2/auth?client_id={client_id}&redirect_uri={redirect_uri}&scope=openid%20email%20profile&response_type=code"
+    
+    # Build the OAuth URL with proper parameters
+    google_oauth_url = (
+        "https://accounts.google.com/o/oauth2/auth?"
+        f"client_id={client_id}&"
+        f"redirect_uri={redirect_uri}&"
+        "scope=openid email profile&"
+        "response_type=code&"
+        "access_type=offline"
+    )
+    
     return {"auth_url": google_oauth_url}
 
 @app.get("/api/auth/google/callback")
 async def google_callback(code: str):
     """Handle Google OAuth callback"""
     try:
+        # Use the current domain for the redirect URI
+        replit_domain = os.getenv('REPLIT_DOMAINS')
+        if replit_domain:
+            base_url = f"https://{replit_domain.split(',')[0]}"
+        else:
+            base_url = "http://localhost:5000"
+        
+        redirect_uri = f"{base_url}/api/auth/google/callback"
+        
         # Exchange code for token
         token_url = "https://oauth2.googleapis.com/token"
         data = {
@@ -267,7 +296,7 @@ async def google_callback(code: str):
             "client_secret": os.getenv('GOOGLE_CLIENT_SECRET'),
             "code": code,
             "grant_type": "authorization_code",
-            "redirect_uri": "http://localhost:5000/api/auth/google/callback"
+            "redirect_uri": redirect_uri
         }
         
         async with httpx.AsyncClient() as client:
@@ -296,16 +325,47 @@ async def google_callback(code: str):
             data={"sub": user["email"]}, expires_delta=access_token_expires
         )
         
-        # Redirect to frontend with token
-        return FileResponse("dist/index.html", headers={"Set-Cookie": f"access_token={access_token}; HttpOnly; Path=/"})
+        # Get base URL again for redirect
+        replit_domain = os.getenv('REPLIT_DOMAINS')
+        if replit_domain:
+            frontend_url = f"https://{replit_domain.split(',')[0]}"
+        else:
+            frontend_url = "http://localhost:5000"
+        
+        # Instead of redirecting with cookie, redirect with token in URL fragment
+        return RedirectResponse(f"{frontend_url}/?token={access_token}")
         
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Google OAuth failed: {str(e)}")
+        print(f"Google OAuth error: {e}")
+        # Get base URL for error redirect
+        replit_domain = os.getenv('REPLIT_DOMAINS')
+        if replit_domain:
+            frontend_url = f"https://{replit_domain.split(',')[0]}"
+        else:
+            frontend_url = "http://localhost:5000"
+        # Redirect to frontend with error
+        return RedirectResponse(f"{frontend_url}/?error=oauth_failed")
 
 @app.get("/api/auth/me", response_model=User)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current user information"""
     return User(**current_user)
+
+@app.get("/api/auth/debug")
+async def debug_oauth():
+    """Debug OAuth configuration"""
+    replit_domain = os.getenv('REPLIT_DOMAINS')
+    if replit_domain:
+        base_url = f"https://{replit_domain.split(',')[0]}"
+    else:
+        base_url = "http://localhost:5000"
+    
+    return {
+        "base_url": base_url,
+        "redirect_uri": f"{base_url}/api/auth/google/callback",
+        "google_client_id": os.getenv('GOOGLE_CLIENT_ID', 'NOT_SET'),
+        "replit_domain": replit_domain,
+    }
 
 @app.post("/api/upload", response_model=UploadResponse)
 async def upload_files(files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)):
