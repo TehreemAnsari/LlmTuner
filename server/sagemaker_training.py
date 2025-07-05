@@ -372,3 +372,153 @@ class SageMakerTrainingManager:
         user_prefix = user_id[:8]  # First 8 chars of user ID
         
         return f"llm-tune-{user_prefix}-{model_name}-{timestamp}"
+    
+    def deploy_model(self, model_s3_uri: str, model_name: str, instance_type: str = "ml.g5.xlarge") -> Dict[str, Any]:
+        """Deploy trained model to SageMaker endpoint for inference"""
+        
+        if not self.aws_configured:
+            raise Exception("AWS SageMaker is not configured")
+        
+        try:
+            # Create model
+            model_config = {
+                'ModelName': model_name,
+                'PrimaryContainer': {
+                    'Image': '763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-inference:1.13.1-transformers4.26.0-gpu-py39-cu117-ubuntu20.04',
+                    'ModelDataUrl': model_s3_uri,
+                    'Environment': {
+                        'SAGEMAKER_PROGRAM': 'inference.py',
+                        'SAGEMAKER_SUBMIT_DIRECTORY': '/opt/ml/code',
+                        'SAGEMAKER_CONTAINER_LOG_LEVEL': '20',
+                        'SAGEMAKER_REGION': self.aws_region
+                    }
+                },
+                'ExecutionRoleArn': self.execution_role
+            }
+            
+            self.sagemaker_client.create_model(**model_config)
+            
+            # Create endpoint configuration
+            endpoint_config_name = f"{model_name}-config"
+            endpoint_config = {
+                'EndpointConfigName': endpoint_config_name,
+                'ProductionVariants': [
+                    {
+                        'VariantName': 'primary',
+                        'ModelName': model_name,
+                        'InitialInstanceCount': 1,
+                        'InstanceType': instance_type,
+                        'InitialVariantWeight': 1.0
+                    }
+                ]
+            }
+            
+            self.sagemaker_client.create_endpoint_config(**endpoint_config)
+            
+            # Create endpoint
+            endpoint_name = f"{model_name}-endpoint"
+            endpoint_config_create = {
+                'EndpointName': endpoint_name,
+                'EndpointConfigName': endpoint_config_name
+            }
+            
+            self.sagemaker_client.create_endpoint(**endpoint_config_create)
+            
+            return {
+                'endpoint_name': endpoint_name,
+                'endpoint_config_name': endpoint_config_name,
+                'model_name': model_name,
+                'status': 'Creating',
+                'instance_type': instance_type,
+                'estimated_cost_per_hour': self._get_instance_cost(instance_type)
+            }
+            
+        except Exception as e:
+            print(f"❌ Error deploying model: {e}")
+            raise Exception(f"Failed to deploy model: {str(e)}")
+    
+    def get_model_download_url(self, model_s3_uri: str) -> str:
+        """Generate presigned URL for model download"""
+        
+        if not self.aws_configured:
+            raise Exception("AWS S3 is not configured")
+        
+        try:
+            # Extract bucket and key from S3 URI
+            s3_uri_parts = model_s3_uri.replace('s3://', '').split('/', 1)
+            bucket = s3_uri_parts[0]
+            key = s3_uri_parts[1]
+            
+            # Generate presigned URL (valid for 1 hour)
+            download_url = self.s3_client.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': bucket, 'Key': key},
+                ExpiresIn=3600  # 1 hour
+            )
+            
+            return download_url
+            
+        except Exception as e:
+            print(f"❌ Error generating download URL: {e}")
+            raise Exception(f"Failed to generate download URL: {str(e)}")
+    
+    def invoke_endpoint(self, endpoint_name: str, input_text: str) -> Dict[str, Any]:
+        """Invoke deployed model endpoint for inference"""
+        
+        if not self.aws_configured:
+            raise Exception("AWS SageMaker is not configured")
+        
+        try:
+            # Prepare input data
+            payload = {
+                'inputs': input_text,
+                'parameters': {
+                    'max_new_tokens': 100,
+                    'temperature': 0.7,
+                    'top_p': 0.9,
+                    'do_sample': True
+                }
+            }
+            
+            # Invoke endpoint
+            response = self.sagemaker_client.invoke_endpoint(
+                EndpointName=endpoint_name,
+                ContentType='application/json',
+                Body=json.dumps(payload)
+            )
+            
+            # Parse response
+            result = json.loads(response['Body'].read().decode('utf-8'))
+            
+            return {
+                'input_text': input_text,
+                'generated_text': result.get('generated_text', ''),
+                'endpoint_name': endpoint_name,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            print(f"❌ Error invoking endpoint: {e}")
+            raise Exception(f"Failed to invoke endpoint: {str(e)}")
+    
+    def get_endpoint_status(self, endpoint_name: str) -> Dict[str, Any]:
+        """Get status of deployed endpoint"""
+        
+        if not self.aws_configured:
+            raise Exception("AWS SageMaker is not configured")
+        
+        try:
+            response = self.sagemaker_client.describe_endpoint(EndpointName=endpoint_name)
+            
+            return {
+                'endpoint_name': endpoint_name,
+                'status': response['EndpointStatus'],
+                'creation_time': response['CreationTime'].isoformat(),
+                'last_modified_time': response['LastModifiedTime'].isoformat(),
+                'instance_type': response['ProductionVariants'][0]['CurrentInstanceCount'],
+                'failure_reason': response.get('FailureReason')
+            }
+            
+        except Exception as e:
+            print(f"❌ Error getting endpoint status: {e}")
+            raise Exception(f"Failed to get endpoint status: {str(e)}")

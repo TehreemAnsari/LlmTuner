@@ -789,6 +789,134 @@ async def get_training_cost_estimate(
         "currency": "USD"
     }
 
+@app.post("/api/deploy-model")
+async def deploy_model(
+    model_s3_uri: str,
+    model_name: str,
+    instance_type: str = "ml.g5.xlarge",
+    current_user: dict = Depends(get_current_user)
+):
+    """Deploy trained model to SageMaker endpoint"""
+    
+    try:
+        deployment = sagemaker_manager.deploy_model(
+            model_s3_uri=model_s3_uri,
+            model_name=model_name,
+            instance_type=instance_type
+        )
+        
+        return {
+            "message": "Model deployment initiated",
+            "deployment": deployment
+        }
+        
+    except Exception as e:
+        print(f"❌ Error deploying model: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to deploy model: {str(e)}")
+
+@app.get("/api/model-download/{job_name}")
+async def get_model_download_url(job_name: str, current_user: dict = Depends(get_current_user)):
+    """Get presigned URL for model download"""
+    
+    try:
+        # Get training job details to find model artifacts
+        job_status = sagemaker_manager.get_training_job_status(job_name)
+        
+        if job_status['status'] != 'Completed':
+            raise HTTPException(status_code=400, detail="Training job not completed")
+        
+        model_s3_uri = job_status.get('model_artifacts_s3_uri')
+        if not model_s3_uri:
+            raise HTTPException(status_code=404, detail="Model artifacts not found")
+        
+        download_url = sagemaker_manager.get_model_download_url(model_s3_uri)
+        
+        return {
+            "download_url": download_url,
+            "model_s3_uri": model_s3_uri,
+            "job_name": job_name,
+            "expires_in": 3600  # 1 hour
+        }
+        
+    except Exception as e:
+        print(f"❌ Error generating download URL: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate download URL: {str(e)}")
+
+@app.post("/api/invoke-model")
+async def invoke_model(
+    endpoint_name: str,
+    input_text: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Invoke deployed model for inference"""
+    
+    try:
+        result = sagemaker_manager.invoke_endpoint(
+            endpoint_name=endpoint_name,
+            input_text=input_text
+        )
+        
+        return {
+            "result": result,
+            "status": "success"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error invoking model: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to invoke model: {str(e)}")
+
+@app.get("/api/endpoint-status/{endpoint_name}")
+async def get_endpoint_status(endpoint_name: str, current_user: dict = Depends(get_current_user)):
+    """Get status of deployed endpoint"""
+    
+    try:
+        status = sagemaker_manager.get_endpoint_status(endpoint_name)
+        return status
+        
+    except Exception as e:
+        print(f"❌ Error getting endpoint status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get endpoint status: {str(e)}")
+
+@app.get("/api/training-job-actions/{job_name}")
+async def get_training_job_actions(job_name: str, current_user: dict = Depends(get_current_user)):
+    """Get available actions for a completed training job"""
+    
+    try:
+        job_status = sagemaker_manager.get_training_job_status(job_name)
+        
+        actions = {
+            "job_name": job_name,
+            "status": job_status['status'],
+            "available_actions": []
+        }
+        
+        if job_status['status'] == 'Completed':
+            actions["available_actions"] = [
+                {
+                    "action": "download_model",
+                    "description": "Download trained model artifacts",
+                    "endpoint": f"/api/model-download/{job_name}"
+                },
+                {
+                    "action": "deploy_model",
+                    "description": "Deploy model to inference endpoint",
+                    "endpoint": "/api/deploy-model"
+                }
+            ]
+            
+            # Add model artifacts info
+            if job_status.get('model_artifacts_s3_uri'):
+                actions["model_artifacts"] = {
+                    "s3_uri": job_status['model_artifacts_s3_uri'],
+                    "estimated_size": "~500MB - 2GB (depending on model)"
+                }
+        
+        return actions
+        
+    except Exception as e:
+        print(f"❌ Error getting training job actions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get training job actions: {str(e)}")
+
 # Serve static files for the frontend
 app.mount("/", StaticFiles(directory="dist", html=True), name="static")
 
