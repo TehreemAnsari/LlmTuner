@@ -41,6 +41,7 @@ from auth import (
     auth_manager, UserCreate, UserLogin, User, Token, GoogleUser,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
+from sagemaker_training import SageMakerTrainingManager
 
 # Ensure uploads directory exists (for local fallback)
 uploads_dir = Path("uploads")
@@ -114,6 +115,9 @@ app.add_middleware(
 # Security
 security = HTTPBearer()
 
+# Initialize SageMaker Training Manager
+sagemaker_manager = SageMakerTrainingManager()
+
 # OAuth Configuration
 oauth = OAuth()
 oauth.register(
@@ -147,6 +151,35 @@ class TrainingResponse(BaseModel):
     message: str
     hyperparameters: Hyperparameters
     files: List[dict]
+
+class SageMakerTrainingRequest(BaseModel):
+    base_model: str
+    hyperparameters: Hyperparameters
+    files: List[str]  # S3 keys of uploaded files
+    instance_type: str = "ml.g5.2xlarge"
+
+class SageMakerTrainingResponse(BaseModel):
+    job_name: str
+    job_arn: str
+    status: str
+    training_data_s3_uri: str
+    output_s3_uri: str
+    instance_type: str
+    created_at: str
+    estimated_cost_per_hour: float
+
+class TrainingJobStatus(BaseModel):
+    job_name: str
+    status: str
+    creation_time: str
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration_seconds: float
+    instance_type: str
+    failure_reason: Optional[str] = None
+    model_artifacts_s3_uri: Optional[str] = None
+    training_metrics: List[dict]
+    estimated_cost: float
 
 def create_gpt2_script():
     """Create the GPT-2 tuning script if it doesn't exist"""
@@ -569,7 +602,7 @@ async def upload_files(files: List[UploadFile] = File(...), current_user: dict =
 
 @app.post("/api/start-training", response_model=TrainingResponse)
 async def start_training(request: TrainingRequest, current_user: dict = Depends(get_current_user)):
-    """Start training with hyperparameters using S3-stored files"""
+    """Start training with hyperparameters using S3-stored files (Legacy GPT-2 script)"""
     print(f"🎯 Starting training with hyperparameters: {request.hyperparameters.model_dump()}")
     print(f"📂 Training files: {request.files}")
     
@@ -663,6 +696,98 @@ async def start_training(request: TrainingRequest, current_user: dict = Depends(
         hyperparameters=request.hyperparameters,
         files=processed_files
     )
+
+@app.post("/api/sagemaker-training", response_model=SageMakerTrainingResponse)
+async def start_sagemaker_training(request: SageMakerTrainingRequest, current_user: dict = Depends(get_current_user)):
+    """Start SageMaker training job for LLM fine-tuning"""
+    print(f"🚀 Starting SageMaker training job...")
+    print(f"📊 Base model: {request.base_model}")
+    print(f"🎯 Hyperparameters: {request.hyperparameters.model_dump()}")
+    print(f"📂 Training files: {request.files}")
+    
+    user_id = current_user["user_id"]
+    
+    try:
+        # Generate unique job name
+        job_name = sagemaker_manager.generate_job_name(user_id, request.base_model)
+        
+        # Prepare training data in SageMaker format
+        training_data_s3_uri = sagemaker_manager.prepare_training_data(user_id, request.files)
+        
+        # Create SageMaker training job
+        training_job = sagemaker_manager.create_training_job(
+            job_name=job_name,
+            user_id=user_id,
+            base_model=request.base_model,
+            training_files=request.files,
+            hyperparameters=request.hyperparameters.model_dump(),
+            instance_type=request.instance_type
+        )
+        
+        return SageMakerTrainingResponse(**training_job)
+        
+    except Exception as e:
+        print(f"❌ SageMaker training job failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start SageMaker training: {str(e)}")
+
+@app.get("/api/training-job/{job_name}", response_model=TrainingJobStatus)
+async def get_training_job_status(job_name: str, current_user: dict = Depends(get_current_user)):
+    """Get status of a SageMaker training job"""
+    
+    try:
+        status = sagemaker_manager.get_training_job_status(job_name)
+        return TrainingJobStatus(**status)
+        
+    except Exception as e:
+        print(f"❌ Error getting training job status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get training job status: {str(e)}")
+
+@app.get("/api/training-jobs")
+async def list_training_jobs(current_user: dict = Depends(get_current_user)):
+    """List all training jobs for the current user"""
+    
+    user_id = current_user["user_id"]
+    
+    try:
+        jobs = sagemaker_manager.list_training_jobs(user_id)
+        return {"training_jobs": jobs}
+        
+    except Exception as e:
+        print(f"❌ Error listing training jobs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list training jobs: {str(e)}")
+
+@app.post("/api/stop-training-job/{job_name}")
+async def stop_training_job(job_name: str, current_user: dict = Depends(get_current_user)):
+    """Stop a running SageMaker training job"""
+    
+    try:
+        result = sagemaker_manager.stop_training_job(job_name)
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error stopping training job: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to stop training job: {str(e)}")
+
+@app.get("/api/training-cost-estimate")
+async def get_training_cost_estimate(
+    base_model: str,
+    instance_type: str = "ml.g5.2xlarge",
+    estimated_hours: float = 2.0,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get estimated cost for training job"""
+    
+    hourly_cost = sagemaker_manager._get_instance_cost(instance_type)
+    total_cost = hourly_cost * estimated_hours
+    
+    return {
+        "base_model": base_model,
+        "instance_type": instance_type,
+        "estimated_hours": estimated_hours,
+        "hourly_cost": hourly_cost,
+        "total_estimated_cost": round(total_cost, 2),
+        "currency": "USD"
+    }
 
 # Serve static files for the frontend
 app.mount("/", StaticFiles(directory="dist", html=True), name="static")

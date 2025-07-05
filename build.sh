@@ -13,6 +13,7 @@ npm run build
 echo "🐍 Copying Python files to dist directory..."
 cp server/main.py dist/
 cp server/auth.py dist/
+cp server/sagemaker_training.py dist/
 cp gpt2_tuning.py dist/
 cp pyproject.toml dist/
 
