@@ -35,7 +35,7 @@ class SageMakerTrainingManager:
             os.getenv('SAGEMAKER_ROLE') or
             'arn:aws:iam::103259692132:role/SageMakerExecutionRole-LLMTuner'  # Default to your account
         )
-        self.s3_bucket = os.getenv('S3_BUCKET_NAME', 'llm-tuner-platform')
+        self.s3_bucket = os.getenv('S3_BUCKET_NAME', 'llm-tuner-user-uploads')
         self.aws_region = aws_region
         
     def create_training_job(
