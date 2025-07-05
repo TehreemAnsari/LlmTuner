@@ -28,7 +28,13 @@ class SageMakerTrainingManager:
             self.s3_client = None
             self.aws_configured = False
         
-        self.execution_role = os.getenv('SAGEMAKER_EXECUTION_ROLE', 'arn:aws:iam::123456789012:role/SageMakerExecutionRole')
+        # Try multiple possible secret names for SageMaker role
+        self.execution_role = (
+            os.getenv('SAGEMAKER_EXECUTION_ROLE') or 
+            os.getenv('LLM_SAGEMAKER') or 
+            os.getenv('SAGEMAKER_ROLE') or
+            'arn:aws:iam::103259692132:role/SageMakerExecutionRole-LLMTuner'  # Default to your account
+        )
         self.s3_bucket = os.getenv('S3_BUCKET_NAME', 'llm-tuner-platform')
         self.aws_region = aws_region
         
