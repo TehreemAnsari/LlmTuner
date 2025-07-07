@@ -106,21 +106,7 @@ class SageMakerTrainingManager:
                 'StoppingCondition': {
                     'MaxRuntimeInSeconds': 10800  # 3 hours max
                 },
-                'HyperParameters': sagemaker_hyperparameters,
-                'Tags': [
-                    {
-                        'Key': 'Project',
-                        'Value': 'LLM-Tuner-Platform'
-                    },
-                    {
-                        'Key': 'UserId',
-                        'Value': user_id
-                    },
-                    {
-                        'Key': 'BaseModel',
-                        'Value': base_model
-                    }
-                ]
+                'HyperParameters': sagemaker_hyperparameters
             }
             
             # Start the training job
