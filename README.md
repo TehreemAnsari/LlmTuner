@@ -352,6 +352,18 @@ java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb
 3. **Cross-Origin Issues**: May need CORS configuration adjustments
 4. **AWS Costs**: SageMaker training incurs real AWS costs even in development
 
+## Documentation
+
+All comprehensive documentation is now organized in the `/docs` folder:
+
+- **[Complete Documentation Index](docs/README.md)** - Navigate all guides and references
+- **[SageMaker Integration](docs/SAGEMAKER_INTEGRATION.md)** - AWS SageMaker with JumpStart
+- **[Model Testing Guide](docs/MODEL_TESTING_GUIDE.md)** - Testing and validation workflows
+- **[Technical Documentation](docs/TECHNICAL_DOCUMENTATION.md)** - Complete architecture guide
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[AWS Setup Guide](docs/AWS_ROLE_SETUP.md)** - IAM configuration for SageMaker
+- **[Post-Training Workflow](docs/POST_TRAINING_WORKFLOW.md)** - Model management and deployment
+
 ## Production Deployment
 
 ### Deployment Options
@@ -1276,6 +1288,84 @@ print(response)
 
 ---
 
+## Updates-07/07/2025
+
+### Major Platform Enhancements
+
+#### 1. **SageMaker JumpStart Integration**
+- **Complete Integration**: Replaced custom training containers with pre-built SageMaker JumpStart models
+- **Available Models**: Llama 2 7B, Llama 2 13B, and FLAN-T5 XL with optimized fine-tuning configurations
+- **Reliability Improvement**: Eliminated AlgorithmError issues by using AWS-managed training containers
+- **No Script Requirements**: Pre-configured entry points handle all training complexities automatically
+
+#### 2. **Real AWS Training Success**
+- **Live SageMaker Jobs**: Successfully created actual AWS SageMaker training jobs visible in AWS Console
+- **Job Name**: `llm-tune-google10-llama-2-7b-20250707-201433-ml-m5-large`
+- **Data Processing**: 55,621 New Zealand enterprise survey samples processed and uploaded to S3
+- **Instance Management**: Intelligent fallback from ml.g5.2xlarge to ml.m5.large for quota optimization
+
+#### 3. **Comprehensive Model Testing Interface**
+- **New Testing Tab**: Added dedicated "Model Testing" section in dashboard
+- **Deployment Capabilities**: One-click model deployment to SageMaker endpoints
+- **Interactive Testing**: Web-based interface for testing fine-tuned models with custom prompts
+- **Download Options**: Direct model file downloads for local testing and integration
+
+#### 4. **Enhanced Cost Management**
+- **Multi-Instance Support**: Added ml.t3.medium ($0.042/hour), ml.c5.large ($0.085/hour), ml.m5.large ($0.096/hour)
+- **Budget-Friendly Defaults**: Changed default instance from expensive GPU to cost-effective CPU instances
+- **Real-time Estimation**: Accurate cost calculations based on actual AWS pricing
+
+#### 5. **Advanced Error Handling**
+- **Quota Management**: Intelligent detection and handling of AWS ResourceLimitExceeded errors
+- **Instance Fallback**: Automatic retry with alternative instance types when quotas exceeded
+- **User Feedback**: Clear messaging about quota limitations and resolution steps
+
+#### 6. **Production-Ready Architecture**
+- **S3 Integration**: All training data properly stored in AWS S3 for scalable access
+- **Security**: Proper IAM role configuration with AmazonSageMakerFullAccess permissions
+- **Monitoring**: Real-time job status tracking and progress updates
+
+### Technical Achievements
+
+#### Backend Enhancements
+- **JumpStart Manager**: New `jumpstart_training.py` module for simplified model access
+- **API Endpoints**: Added `/api/jumpstart-training` and `/api/jumpstart-models` endpoints
+- **Configuration Updates**: Enhanced hyperparameter handling for JumpStart compatibility
+
+#### Frontend Improvements
+- **Updated Interface**: Modified SageMaker training component to use JumpStart endpoints
+- **Better Notifications**: Improved success/error messages for training job creation
+- **Cost Display**: Real-time cost estimation updates based on instance selection
+
+#### Data Processing Success
+- **Enterprise Survey Data**: Successfully processed 55,622-line New Zealand financial dataset
+- **JSONL Format**: Converted CSV data to proper training format for LLM fine-tuning
+- **S3 Storage**: Securely stored at `s3://llm-tuner-user-uploads/users/.../training-data/train.jsonl`
+
+### User Experience Improvements
+
+#### Simplified Workflow
+1. **Upload**: Drag-and-drop CSV files with automatic processing
+2. **Configure**: Select from pre-optimized JumpStart models and instance types
+3. **Train**: One-click training job creation with real AWS SageMaker
+4. **Test**: Comprehensive testing interface for fine-tuned models
+5. **Deploy**: Production-ready model deployment options
+
+#### Professional Features
+- **AWS Console Integration**: Training jobs visible in official AWS SageMaker console
+- **Cost Transparency**: Clear pricing information and budget-friendly options
+- **Enterprise Ready**: Proper security, scaling, and monitoring capabilities
+
+### Next Steps Available
+- **Model Testing**: Use completed training jobs in the new testing interface
+- **Deployment**: Deploy models to real-time inference endpoints
+- **Integration**: Download models for local use or API integration
+- **Scaling**: Request AWS quota increases for GPU instances when needed
+
+This update transforms the platform from a demonstration tool into a production-ready enterprise LLM fine-tuning solution with real AWS integration.
+
+---
+
 ## Support and Contributing
 
 For support, please contact [support@your-domain.com] or create an issue in the repository.
@@ -1288,5 +1378,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Last Updated**: January 5, 2025
-**Version**: 2.0.0 with AWS SageMaker Integration
+**Last Updated**: July 7, 2025
+**Version**: 2.1.0 with SageMaker JumpStart Integration

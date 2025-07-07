@@ -9,6 +9,7 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 
 ## Recent Changes
 
+- ✅ **Documentation Organization** (Jul 7): Moved all documentation files to dedicated `/docs` folder with comprehensive index and navigation
 - ✅ **Demo Training Mode Implementation** (Jul 7): Created fallback demo mode for users without full AWS SageMaker permissions, demonstrates complete training workflow including data processing and job creation
 - ✅ **Permission-Based Training Flow** (Jul 7): Added intelligent handling of AWS IAM permission limitations with graceful fallback to demonstration mode
 - ✅ **Enterprise Survey Data Processing** (Jul 7): Successfully processed user's 55,622-line New Zealand enterprise survey CSV into 55,621 training samples for LLM fine-tuning
