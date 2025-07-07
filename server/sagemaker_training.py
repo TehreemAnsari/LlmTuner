@@ -128,9 +128,12 @@ class SageMakerTrainingManager:
                 }
             
             except ClientError as create_error:
-                # If we get permission errors, create a demo training job
-                if "AccessDenied" in str(create_error) or "not authorized" in str(create_error):
-                    print(f"⚠️ AWS permission limited - creating demo training job")
+                # If we get permission errors or quota limits, create a demo training job
+                if any(error_type in str(create_error) for error_type in ["AccessDenied", "not authorized", "ResourceLimitExceeded", "service limit"]):
+                    print(f"⚠️ AWS limitation detected - creating demo training job")
+                    if "ResourceLimitExceeded" in str(create_error):
+                        print(f"💡 Quota issue: {instance_type} instances not available in your AWS account")
+                        print(f"🔧 To resolve: Request quota increase in AWS Service Quotas console")
                     return self._create_demo_training_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type)
                 else:
                     raise create_error
@@ -214,6 +217,9 @@ class SageMakerTrainingManager:
         
         # Approximate costs per hour (USD) - these should be updated regularly
         instance_costs = {
+            'ml.m5.large': 0.096,
+            'ml.m5.xlarge': 0.192,
+            'ml.m5.2xlarge': 0.384,
             'ml.g5.2xlarge': 1.21,
             'ml.g5.4xlarge': 1.83,
             'ml.g5.8xlarge': 2.42,

@@ -156,7 +156,7 @@ class SageMakerTrainingRequest(BaseModel):
     base_model: str
     hyperparameters: Hyperparameters
     files: List[str]  # S3 keys of uploaded files
-    instance_type: str = "ml.g5.2xlarge"
+    instance_type: str = "ml.m5.large"
 
 class SageMakerTrainingResponse(BaseModel):
     job_name: str
