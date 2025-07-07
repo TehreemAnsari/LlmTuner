@@ -393,7 +393,9 @@ class SageMakerTrainingManager:
         
         timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
         model_name = base_model.replace('/', '-').replace('_', '-')
-        user_prefix = user_id[:8]  # First 8 chars of user ID
+        
+        # Sanitize user ID to only contain valid characters (alphanumeric and hyphens)
+        user_prefix = ''.join(c for c in user_id if c.isalnum())[:8]
         
         return f"llm-tune-{user_prefix}-{model_name}-{timestamp}"
     
