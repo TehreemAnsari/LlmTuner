@@ -63,7 +63,7 @@ class JumpStartTrainingManager:
         # Get model configuration
         model_config = self._get_model_config(model_id)
         
-        # Prepare training job configuration
+        # Prepare training job configuration with proper JumpStart setup
         training_job_config = {
             'TrainingJobName': job_name,
             'AlgorithmSpecification': {
@@ -78,11 +78,11 @@ class JumpStartTrainingManager:
                     'DataSource': {
                         'S3DataSource': {
                             'S3DataType': 'S3Prefix',
-                            'S3Uri': training_data_s3_uri,
+                            'S3Uri': training_data_s3_uri.rstrip('/') + '/',  # Ensure trailing slash
                             'S3DataDistributionType': 'FullyReplicated'
                         }
                     },
-                    'ContentType': 'application/json',
+                    'ContentType': 'application/jsonlines',
                     'CompressionType': 'None'
                 }
             ],
@@ -92,7 +92,7 @@ class JumpStartTrainingManager:
             'ResourceConfig': {
                 'InstanceType': instance_type,
                 'InstanceCount': 1,
-                'VolumeSizeInGB': 30
+                'VolumeSizeInGB': 50  # Increased for model storage
             },
             'StoppingCondition': {
                 'MaxRuntimeInSeconds': 86400  # 24 hours
@@ -166,17 +166,25 @@ class JumpStartTrainingManager:
     def _format_hyperparameters(self, hyperparameters: Dict[str, Any], model_id: str) -> Dict[str, str]:
         """Format hyperparameters for JumpStart training"""
         
-        # Convert all values to strings as required by SageMaker
-        formatted = {}
-        for key, value in hyperparameters.items():
-            formatted[key] = str(value)
+        # Use HuggingFace transformers standard hyperparameters
+        formatted = {
+            'epochs': str(hyperparameters.get('epochs', 3)),
+            'per_device_train_batch_size': str(hyperparameters.get('batch_size', 4)),
+            'learning_rate': str(hyperparameters.get('learning_rate', 0.0001)),
+            'weight_decay': str(hyperparameters.get('weight_decay', 0.01)),
+            'warmup_steps': '100',
+            'logging_steps': '10',
+            'save_steps': '500',
+            'max_steps': '1000'
+        }
         
         # Add model-specific hyperparameters
         if 'llama-2' in model_id:
             formatted.update({
-                'model_name': 'meta-llama/Llama-2-7b-hf' if '7b' in model_id else 'meta-llama/Llama-2-13b-hf',
+                'model_id': 'meta-llama/Llama-2-7b-hf' if '7b' in model_id else 'meta-llama/Llama-2-13b-hf',
                 'instruction_tuned': 'False',
-                'chat_dataset': 'False'
+                'chat_dataset': 'False',
+                'train_data_split_seed': '0'
             })
         elif 'flan-t5' in model_id:
             formatted.update({

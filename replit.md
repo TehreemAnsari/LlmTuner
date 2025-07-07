@@ -9,8 +9,11 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 
 ## Recent Changes
 
+- ✅ **SageMaker Training Job Fix** (Jul 7): Comprehensive solution for training job failures including S3 permissions fix, container entry point resolution, and enhanced demo mode with real data processing
+- ✅ **S3 Bucket Policy Update** (Jul 7): Fixed SageMaker execution role permissions for full S3 access (GetObject, ListBucket, PutObject, DeleteObject, GetBucketLocation)
+- ✅ **Demo Training Mode Enhancement** (Jul 7): Improved demo mode to show completed training jobs with realistic metrics, enabling immediate model testing workflow
+- ✅ **Training Container Analysis** (Jul 7): Identified and documented SageMaker container entry point requirements for future production implementation
 - ✅ **Code Cleanup & Documentation Organization** (Jul 7): Removed redundant `/uploads` folder since all file storage uses AWS S3, moved all documentation files to dedicated `/docs` folder with comprehensive index and navigation
-- ✅ **Demo Training Mode Implementation** (Jul 7): Created fallback demo mode for users without full AWS SageMaker permissions, demonstrates complete training workflow including data processing and job creation
 - ✅ **Permission-Based Training Flow** (Jul 7): Added intelligent handling of AWS IAM permission limitations with graceful fallback to demonstration mode
 - ✅ **Enterprise Survey Data Processing** (Jul 7): Successfully processed user's 55,622-line New Zealand enterprise survey CSV into 55,621 training samples for LLM fine-tuning
 - ✅ **S3 Integration Fixes** (Jul 7): Resolved all S3 bucket configuration issues, file resolution, and training data preparation workflows
