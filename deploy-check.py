@@ -49,13 +49,8 @@ def check_deployment_readiness():
         print(f"❌ Python dependencies missing: {e}")
         return False
     
-    # Check if uploads directory exists
-    uploads_dir = Path("dist/uploads")
-    if not uploads_dir.exists():
-        uploads_dir.mkdir(exist_ok=True)
-        print("✅ Created uploads directory")
-    else:
-        print("✅ Uploads directory - Found")
+    # Note: Uploads now handled via S3, no local directory needed
+    print("✅ File storage - Using AWS S3 (no local uploads directory needed)")
     
     print("\n🎉 Deployment readiness check passed!")
     print("📋 Ready for deployment with the following setup:")

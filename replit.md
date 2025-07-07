@@ -9,7 +9,7 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 
 ## Recent Changes
 
-- ✅ **Documentation Organization** (Jul 7): Moved all documentation files to dedicated `/docs` folder with comprehensive index and navigation
+- ✅ **Code Cleanup & Documentation Organization** (Jul 7): Removed redundant `/uploads` folder since all file storage uses AWS S3, moved all documentation files to dedicated `/docs` folder with comprehensive index and navigation
 - ✅ **Demo Training Mode Implementation** (Jul 7): Created fallback demo mode for users without full AWS SageMaker permissions, demonstrates complete training workflow including data processing and job creation
 - ✅ **Permission-Based Training Flow** (Jul 7): Added intelligent handling of AWS IAM permission limitations with graceful fallback to demonstration mode
 - ✅ **Enterprise Survey Data Processing** (Jul 7): Successfully processed user's 55,622-line New Zealand enterprise survey CSV into 55,621 training samples for LLM fine-tuning
@@ -119,7 +119,7 @@ User Input → React Components → Custom Hooks → TanStack Query → API Rout
 ### Current Setup
 - Development server on port 5000
 - Vite integration for frontend assets
-- File uploads stored in local `uploads/` directory
+- File uploads stored in AWS S3 bucket
 - In-memory storage without persistence
 
 ### Production Considerations
@@ -131,7 +131,7 @@ User Input → React Components → Custom Hooks → TanStack Query → API Rout
 ## Known Limitations
 
 1. **Data Persistence**: In-memory storage loses data on server restart
-2. **File Storage**: Local file storage not suitable for production scaling
+2. **File Storage**: ✅ RESOLVED - Now using AWS S3 for scalable cloud storage
 3. **Training Simulation**: Mock training process for demonstration purposes
 4. **User Authentication**: No user management or access control implemented
 5. **Concurrency**: Single-threaded training simulation without queue management

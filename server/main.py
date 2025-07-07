@@ -44,9 +44,8 @@ from auth import (
 from sagemaker_training import SageMakerTrainingManager
 from jumpstart_training import JumpStartTrainingManager
 
-# Ensure uploads directory exists (for local fallback)
-uploads_dir = Path("uploads")
-uploads_dir.mkdir(exist_ok=True)
+# Create temporary directory for processing (when needed)
+import tempfile
 
 # Initialize S3 client
 def get_s3_client():
@@ -642,8 +641,10 @@ async def start_training(request: TrainingRequest, current_user: dict = Depends(
             content_str = content_bytes.decode('utf-8')
             
             # Create temporary local file for GPT-2 script
-            temp_content_path = uploads_dir / f"temp_{filename}"
-            temp_content_path.write_text(content_str)
+            # Use temporary file for processing
+            with tempfile.NamedTemporaryFile(mode='w', suffix=f'_{filename}', delete=False) as temp_file:
+                temp_file.write(content_str)
+                temp_content_path = Path(temp_file.name)
             
             # Execute GPT-2 script with hyperparameters
             hyperparams_json = json.dumps(request.hyperparameters.model_dump())
