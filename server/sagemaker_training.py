@@ -45,7 +45,7 @@ class SageMakerTrainingManager:
         base_model: str,
         training_files: List[str],
         hyperparameters: Dict[str, Any],
-        instance_type: str = "ml.g5.2xlarge"
+        instance_type: str = "ml.m5.large"
     ) -> Dict[str, Any]:
         """Create a SageMaker training job for LLM fine-tuning"""
         
@@ -128,12 +128,43 @@ class SageMakerTrainingManager:
                 }
             
             except ClientError as create_error:
-                # If we get permission errors or quota limits, create a demo training job
-                if any(error_type in str(create_error) for error_type in ["AccessDenied", "not authorized", "ResourceLimitExceeded", "service limit"]):
-                    print(f"⚠️ AWS limitation detected - creating demo training job")
-                    if "ResourceLimitExceeded" in str(create_error):
-                        print(f"💡 Quota issue: {instance_type} instances not available in your AWS account")
-                        print(f"🔧 To resolve: Request quota increase in AWS Service Quotas console")
+                # Try alternative instance types if quota exceeded
+                if "ResourceLimitExceeded" in str(create_error):
+                    print(f"⚠️ Quota exceeded for {instance_type}, trying alternative instances...")
+                    alternative_instances = ['ml.m5.large', 'ml.m5.xlarge', 'ml.t3.medium', 'ml.c5.large']
+                    
+                    for alt_instance in alternative_instances:
+                        if alt_instance != instance_type:
+                            print(f"🔄 Attempting with {alt_instance}...")
+                            try:
+                                # Update the config with new instance type
+                                training_job_config['ResourceConfig']['InstanceType'] = alt_instance
+                                training_job_config['TrainingJobName'] = f"{job_name}-{alt_instance.replace('.', '-')}"
+                                
+                                response = self.sagemaker_client.create_training_job(**training_job_config)
+                                print(f"✅ SageMaker training job created with {alt_instance}: {training_job_config['TrainingJobName']}")
+                                
+                                return {
+                                    'job_name': training_job_config['TrainingJobName'],
+                                    'job_arn': response['TrainingJobArn'],
+                                    'status': 'InProgress',
+                                    'training_data_s3_uri': training_data_s3_uri,
+                                    'output_s3_uri': output_s3_uri,
+                                    'instance_type': alt_instance,
+                                    'created_at': datetime.now().isoformat(),
+                                    'estimated_cost_per_hour': self._get_instance_cost(alt_instance)
+                                }
+                            except ClientError as alt_error:
+                                if "ResourceLimitExceeded" not in str(alt_error):
+                                    raise alt_error
+                                continue
+                    
+                    # If all alternatives fail, create demo
+                    print(f"💡 All instance types quota exceeded - creating demo")
+                    return self._create_demo_training_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type)
+                
+                elif any(error_type in str(create_error) for error_type in ["AccessDenied", "not authorized"]):
+                    print(f"⚠️ AWS permission issue - creating demo training job")
                     return self._create_demo_training_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type)
                 else:
                     raise create_error
@@ -217,9 +248,12 @@ class SageMakerTrainingManager:
         
         # Approximate costs per hour (USD) - these should be updated regularly
         instance_costs = {
+            'ml.t3.medium': 0.0416,
+            'ml.c5.large': 0.085,
             'ml.m5.large': 0.096,
             'ml.m5.xlarge': 0.192,
             'ml.m5.2xlarge': 0.384,
+            'ml.c5.xlarge': 0.17,
             'ml.g5.2xlarge': 1.21,
             'ml.g5.4xlarge': 1.83,
             'ml.g5.8xlarge': 2.42,

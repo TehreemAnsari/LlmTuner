@@ -20,18 +20,19 @@ const baseModels = [
 ];
 
 const instanceTypes = [
+  { id: 'ml.m5.large', name: 'ml.m5.large', cost: 0.096, description: 'CPU - Most affordable, good for testing' },
+  { id: 'ml.c5.large', name: 'ml.c5.large', cost: 0.085, description: 'CPU - Optimized for compute' },
   { id: 'ml.g5.2xlarge', name: 'ml.g5.2xlarge', cost: 1.21, description: '24GB GPU - Recommended for 7B models' },
-  { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: '48GB GPU - Good for 13B models' },
-  { id: 'ml.p3.2xlarge', name: 'ml.p3.2xlarge', cost: 3.06, description: '16GB GPU - Alternative option' }
+  { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: '48GB GPU - Good for 13B models' }
 ];
 
 export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingProps) {
   const { token } = useAuth();
   const [selectedModel, setSelectedModel] = useState('llama-2-7b');
-  const [selectedInstance, setSelectedInstance] = useState('ml.g5.2xlarge');
+  const [selectedInstance, setSelectedInstance] = useState('ml.m5.large');
   const [isTraining, setIsTraining] = useState(false);
   const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
-  const [estimatedCost, setEstimatedCost] = useState({ hourly_cost: 1.21, total_estimated_cost: 2.42 });
+  const [estimatedCost, setEstimatedCost] = useState({ hourly_cost: 0.096, total_estimated_cost: 0.192 });
   
   // Hyperparameters
   const [hyperparameters, setHyperparameters] = useState({
