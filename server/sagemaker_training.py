@@ -327,8 +327,32 @@ class SageMakerTrainingManager:
             # Create training dataset in JSONL format
             training_data = []
             
-            for file_s3_key in uploaded_files:
+            for filename in uploaded_files:
+                # Construct full S3 key path - check if it's already a full path or just filename
+                if filename.startswith('users/'):
+                    file_s3_key = filename
+                else:
+                    # Find the file in the user's uploads directory
+                    prefix = f"users/{user_id}/uploads/"
+                    response = self.s3_client.list_objects_v2(
+                        Bucket=self.s3_bucket,
+                        Prefix=prefix
+                    )
+                    
+                    # Find the file that ends with the given filename
+                    matching_files = [
+                        obj['Key'] for obj in response.get('Contents', []) 
+                        if obj['Key'].endswith(filename)
+                    ]
+                    
+                    if not matching_files:
+                        raise Exception(f"File {filename} not found in user uploads")
+                    
+                    file_s3_key = matching_files[0]
+                    print(f"🔍 Found file: {file_s3_key}")
+                
                 # Download file content from S3
+                print(f"📥 Downloading from S3: {file_s3_key}")
                 response = self.s3_client.get_object(Bucket=self.s3_bucket, Key=file_s3_key)
                 content = response['Body'].read().decode('utf-8')
                 
