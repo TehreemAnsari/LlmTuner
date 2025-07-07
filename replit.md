@@ -9,6 +9,11 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 
 ## Recent Changes
 
+- ✅ **Demo Training Mode Implementation** (Jul 7): Created fallback demo mode for users without full AWS SageMaker permissions, demonstrates complete training workflow including data processing and job creation
+- ✅ **Permission-Based Training Flow** (Jul 7): Added intelligent handling of AWS IAM permission limitations with graceful fallback to demonstration mode
+- ✅ **Enterprise Survey Data Processing** (Jul 7): Successfully processed user's 55,622-line New Zealand enterprise survey CSV into 55,621 training samples for LLM fine-tuning
+- ✅ **S3 Integration Fixes** (Jul 7): Resolved all S3 bucket configuration issues, file resolution, and training data preparation workflows
+- ✅ **Job Name Validation** (Jul 7): Fixed SageMaker job name generation to comply with AWS naming requirements, removing invalid characters
 - ✅ **AWS SageMaker Integration Complete** (Jul 5): Added enterprise-grade LLM fine-tuning with Llama 2, FLAN-T5 models, cost estimation, and job monitoring
 - ✅ **SageMaker Training Manager** (Jul 5): Complete backend integration with AWS SageMaker for professional model training
 - ✅ **Advanced UI Components** (Jul 5): New React components for model selection, hyperparameter tuning, and training job management
