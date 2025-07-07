@@ -97,7 +97,7 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         instance_type: selectedInstance
       };
 
-      const response = await fetch('/api/sagemaker-training', {
+      const response = await fetch('/api/jumpstart-training', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +108,7 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
 
       if (response.ok) {
         const result = await response.json();
-        alert(`✅ SageMaker training job started!\n\nJob Name: ${result.job_name}\nEstimated Cost: $${result.estimated_cost_per_hour}/hour`);
+        alert(`✅ SageMaker JumpStart training job started!\n\nJob Name: ${result.job_name}\nEstimated Cost: $${result.estimated_cost_per_hour}/hour`);
         loadTrainingJobs(); // Refresh the job list
       } else {
         const error = await response.json();

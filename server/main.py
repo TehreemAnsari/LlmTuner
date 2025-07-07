@@ -42,6 +42,7 @@ from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from sagemaker_training import SageMakerTrainingManager
+from jumpstart_training import JumpStartTrainingManager
 
 # Ensure uploads directory exists (for local fallback)
 uploads_dir = Path("uploads")
@@ -729,6 +730,65 @@ async def start_sagemaker_training(request: SageMakerTrainingRequest, current_us
     except Exception as e:
         print(f"❌ SageMaker training job failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start SageMaker training: {str(e)}")
+
+@app.post("/api/jumpstart-training", response_model=SageMakerTrainingResponse)
+async def start_jumpstart_training(request: SageMakerTrainingRequest, current_user: dict = Depends(get_current_user)):
+    """Start SageMaker JumpStart training job for LLM fine-tuning"""
+    print(f"🚀 Starting SageMaker JumpStart training...")
+    print(f"📊 Base model: {request.base_model}")
+    print(f"🎯 Hyperparameters: {request.hyperparameters.model_dump()}")
+    print(f"📂 Training files: {request.files}")
+    
+    user_id = current_user["user_id"]
+    
+    try:
+        manager = JumpStartTrainingManager()
+        
+        # Map base model to JumpStart model ID
+        model_id_mapping = {
+            'llama-2-7b': 'huggingface-llm-llama-2-7b-f',
+            'llama-2-13b': 'huggingface-llm-llama-2-13b-f',
+            'flan-t5-xl': 'huggingface-text2text-flan-t5-xl'
+        }
+        
+        model_id = model_id_mapping.get(request.base_model, 'huggingface-llm-llama-2-7b-f')
+        
+        # Generate job name
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        user_prefix = user_id[:10].replace('@', '').replace('.', '')
+        job_name = f"jumpstart-{user_prefix}-{request.base_model}-{timestamp}"
+        
+        # Prepare S3 URIs
+        s3_bucket = "llm-tuner-user-uploads"
+        training_data_s3_uri = f"s3://{s3_bucket}/users/{user_id}/training-data/"
+        output_s3_uri = f"s3://{s3_bucket}/users/{user_id}/models/{job_name}/"
+        
+        result = manager.create_jumpstart_training_job(
+            model_id=model_id,
+            job_name=job_name,
+            training_data_s3_uri=training_data_s3_uri,
+            output_s3_uri=output_s3_uri,
+            hyperparameters=request.hyperparameters.model_dump(),
+            instance_type=request.instance_type
+        )
+        
+        return SageMakerTrainingResponse(**result)
+        
+    except Exception as e:
+        print(f"❌ JumpStart training error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"JumpStart training job creation failed: {str(e)}")
+
+@app.get("/api/jumpstart-models")
+async def get_jumpstart_models(current_user: dict = Depends(get_current_user)):
+    """Get available JumpStart models for fine-tuning"""
+    try:
+        manager = JumpStartTrainingManager()
+        models = manager.get_jumpstart_models()
+        return {"models": models}
+        
+    except Exception as e:
+        print(f"❌ Error fetching JumpStart models: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch JumpStart models: {str(e)}")
 
 @app.get("/api/training-job/{job_name}", response_model=TrainingJobStatus)
 async def get_training_job_status(job_name: str, current_user: dict = Depends(get_current_user)):

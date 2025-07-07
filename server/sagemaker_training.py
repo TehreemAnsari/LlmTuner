@@ -109,23 +109,28 @@ class SageMakerTrainingManager:
                 'HyperParameters': sagemaker_hyperparameters
             }
             
-            # Start the training job
+            # Start the training job using SageMaker JumpStart
             try:
-                # Due to the complexity of creating a proper SageMaker training container with entry point,
-                # and the AlgorithmError we encountered, let's create a comprehensive demo that shows 
-                # the complete workflow with your real data
-                print(f"🚀 Processing real training data with SageMaker workflow...")
+                # Use SageMaker JumpStart for reliable LLM fine-tuning
+                print(f"🚀 Starting SageMaker JumpStart training...")
                 print(f"📊 Training data: {training_data_s3_uri}")
                 print(f"📈 Output location: {output_s3_uri}")
                 print(f"⚙️ Instance type: {instance_type}")
                 print(f"💰 Estimated cost: ${self._get_instance_cost(instance_type)}/hour")
                 
-                # Create a comprehensive demo training job that processes your actual data
-                demo_job_arn = f"arn:aws:sagemaker:us-east-1:103259692132:training-job/{job_name}"
+                # Use JumpStart pre-built training configuration
+                jumpstart_config = self._get_jumpstart_config(base_model, instance_type)
+                training_job_config.update(jumpstart_config)
+                
+                # Create the actual SageMaker training job
+                response = self.sagemaker_client.create_training_job(**training_job_config)
+                
+                print(f"✅ SageMaker JumpStart training job created: {job_name}")
+                print(f"📊 Training job ARN: {response['TrainingJobArn']}")
                 
                 return {
                     'job_name': job_name,
-                    'job_arn': demo_job_arn,
+                    'job_arn': response['TrainingJobArn'],
                     'status': 'InProgress',
                     'training_data_s3_uri': training_data_s3_uri,
                     'output_s3_uri': output_s3_uri,
@@ -202,6 +207,54 @@ class SageMakerTrainingManager:
             'created_at': datetime.now().isoformat(),
             'estimated_cost_per_hour': self._get_instance_cost(instance_type)
         }
+    
+    def _get_jumpstart_config(self, base_model: str, instance_type: str) -> Dict[str, Any]:
+        """Get SageMaker JumpStart configuration for LLM fine-tuning"""
+        
+        # JumpStart pre-built configurations for LLM fine-tuning
+        jumpstart_configs = {
+            'llama-2-7b': {
+                'AlgorithmSpecification': {
+                    'TrainingImage': '763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-training:1.13.1-transformers4.26.0-gpu-py39-cu117-ubuntu20.04',
+                    'TrainingInputMode': 'File',
+                    'EnableSageMakerMetricsTimeSeries': True
+                },
+                'Environment': {
+                    'SAGEMAKER_PROGRAM': 'finetune.py',
+                    'SAGEMAKER_SUBMIT_DIRECTORY': '/opt/ml/code',
+                    'TRANSFORMERS_CACHE': '/tmp/transformers_cache',
+                    'HF_HOME': '/tmp/huggingface'
+                }
+            },
+            'llama-2-13b': {
+                'AlgorithmSpecification': {
+                    'TrainingImage': '763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-training:1.13.1-transformers4.26.0-gpu-py39-cu117-ubuntu20.04',
+                    'TrainingInputMode': 'File',
+                    'EnableSageMakerMetricsTimeSeries': True
+                },
+                'Environment': {
+                    'SAGEMAKER_PROGRAM': 'finetune.py',
+                    'SAGEMAKER_SUBMIT_DIRECTORY': '/opt/ml/code',
+                    'TRANSFORMERS_CACHE': '/tmp/transformers_cache',
+                    'HF_HOME': '/tmp/huggingface'
+                }
+            },
+            'flan-t5-xl': {
+                'AlgorithmSpecification': {
+                    'TrainingImage': '763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-training:1.13.1-transformers4.26.0-gpu-py39-cu117-ubuntu20.04',
+                    'TrainingInputMode': 'File',
+                    'EnableSageMakerMetricsTimeSeries': True
+                },
+                'Environment': {
+                    'SAGEMAKER_PROGRAM': 'finetune.py',
+                    'SAGEMAKER_SUBMIT_DIRECTORY': '/opt/ml/code',
+                    'TRANSFORMERS_CACHE': '/tmp/transformers_cache',
+                    'HF_HOME': '/tmp/huggingface'
+                }
+            }
+        }
+        
+        return jumpstart_configs.get(base_model, jumpstart_configs['llama-2-7b'])
     
     def _get_algorithm_specification(self, base_model: str) -> Dict[str, Any]:
         """Get algorithm specification based on base model"""
