@@ -165,7 +165,10 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         </label>
         <select 
           value={selectedInstance}
-          onChange={(e) => setSelectedInstance(e.target.value)}
+          onChange={(e) => {
+            console.log('Instance changed to:', e.target.value);
+            setSelectedInstance(e.target.value);
+          }}
           className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
         >
           {instanceTypes.map(instance => (
@@ -174,6 +177,12 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
             </option>
           ))}
         </select>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          💡 <strong>ml.m5.large</strong> is recommended - works immediately without quota increases
+        </p>
+        <div className="text-xs text-gray-500 mt-1">
+          Available options: {instanceTypes.length} total
+        </div>
       </div>
 
       {/* Hyperparameters */}
