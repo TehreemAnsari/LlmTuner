@@ -19,8 +19,7 @@ const baseModels = [
   { id: 'flan-t5-xl', name: 'FLAN-T5 XL', description: 'Google FLAN-T5 XL - Instruction-tuned model' }
 ];
 
-// FORCE REFRESH: Completely rebuild instance types array
-const INSTANCE_TYPES_DATA = [
+const FULL_INSTANCE_TYPES = [
   { id: 'ml.m5.large', name: 'ml.m5.large', cost: 0.096, description: 'CPU - ✅ RECOMMENDED: Available immediately, great for testing' },
   { id: 'ml.c5.large', name: 'ml.c5.large', cost: 0.085, description: 'CPU - ✅ Available immediately, compute optimized' },
   { id: 'ml.m5.xlarge', name: 'ml.m5.xlarge', cost: 0.192, description: 'CPU - ✅ Available immediately, more memory' },
@@ -31,21 +30,12 @@ const INSTANCE_TYPES_DATA = [
   { id: 'ml.p3.2xlarge', name: 'ml.p3.2xlarge', cost: 3.06, description: 'GPU - ⚠️ May need quota increase request' }
 ];
 
-// Log immediately to console for debugging
-console.log('🔥 HARD REFRESH: Loading', INSTANCE_TYPES_DATA.length, 'instance types');
-console.log('🔥 Full list:', INSTANCE_TYPES_DATA.map(i => `${i.id}($${i.cost})`).join(', '));
-
-const instanceTypes = [...INSTANCE_TYPES_DATA]; // Create a copy to ensure fresh reference
+console.log('🎯 OVERWRITE: Loading', FULL_INSTANCE_TYPES.length, 'instance types');
 
 export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingProps) {
   const { token } = useAuth();
   const [selectedModel, setSelectedModel] = useState('llama-2-7b');
   const [selectedInstance, setSelectedInstance] = useState('ml.m5.large');
-  
-  // Force component to show debug info
-  console.log('🚀 SageMakerTraining component loaded!');
-  console.log('🔍 Instance types available:', instanceTypes.length);
-  console.log('🔍 First few instance types:', instanceTypes.slice(0, 3).map(i => i.id));
   const [isTraining, setIsTraining] = useState(false);
   const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
   const [estimatedCost, setEstimatedCost] = useState({ hourly_cost: 0.096, total_estimated_cost: 0.192 });
@@ -166,16 +156,16 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-6 text-red-600 bg-yellow-200 p-4 rounded">
-        🔥 CACHE BREAK: AWS SageMaker LLM Fine-Tuning - UPDATED VERSION
+      <h2 className="text-2xl font-bold mb-6 text-green-600 bg-yellow-100 p-4 rounded border-4 border-green-500">
+        ✅ FIXED COMPONENT: AWS SageMaker LLM Fine-Tuning - ALL {FULL_INSTANCE_TYPES.length} INSTANCES
       </h2>
       
-      <div className="mb-4 p-3 bg-red-50 dark:bg-red-900 rounded-lg border border-red-200 dark:border-red-700">
-        <p className="text-sm text-red-800 dark:text-red-200">
-          ⚠️ <strong>DEBUG MODE: {instanceTypes.length} instance types loaded!</strong> Default: {selectedInstance} ({instanceTypes.length} total options)
+      <div className="mb-4 p-3 bg-green-50 border-4 border-green-400 rounded-lg">
+        <p className="text-sm text-green-800 font-bold">
+          🎯 SUCCESS: {FULL_INSTANCE_TYPES.length} instance types loaded successfully!
         </p>
-        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-          Instance IDs: {instanceTypes.map(i => i.id).join(', ')}
+        <p className="text-xs text-green-600 mt-1">
+          All instances: {FULL_INSTANCE_TYPES.map(i => i.id).join(', ')}
         </p>
       </div>
       
@@ -208,10 +198,10 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
             console.log('Instance changed to:', e.target.value);
             setSelectedInstance(e.target.value);
           }}
-          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          className="w-full p-3 border-4 border-blue-500 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
         >
-          {instanceTypes.map((instance, index) => {
-            console.log(`🔍 Rendering option ${index + 1}:`, instance.id);
+          {FULL_INSTANCE_TYPES.map((instance, index) => {
+            console.log(`🎯 FIXED: Rendering option ${index + 1}:`, instance.id);
             return (
               <option key={instance.id} value={instance.id}>
                 {instance.name} - ${instance.cost}/hr - {instance.description}
@@ -222,11 +212,8 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
           💡 <strong>ml.m5.large</strong> is recommended - works immediately without quota increases
         </p>
-        <div className="text-xs text-gray-500 mt-1">
-          Available options: {instanceTypes.length} total
-        </div>
-        <div className="text-xs text-red-500 mt-1">
-          🔍 DEBUG: Actual instance IDs: {instanceTypes.map(i => i.id).join(', ')}
+        <div className="text-xs text-gray-500 mt-1 bg-blue-100 p-2 rounded">
+          Available options: {FULL_INSTANCE_TYPES.length} total
         </div>
       </div>
 
