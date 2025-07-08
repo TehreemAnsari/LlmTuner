@@ -20,13 +20,13 @@ const baseModels = [
 ];
 
 const instanceTypes = [
-  { id: 'ml.m5.large', name: 'ml.m5.large', cost: 0.096, description: 'CPU - ✅ Usually available, good for testing' },
-  { id: 'ml.c5.large', name: 'ml.c5.large', cost: 0.085, description: 'CPU - ✅ Usually available, compute optimized' },
-  { id: 'ml.m5.xlarge', name: 'ml.m5.xlarge', cost: 0.192, description: 'CPU - ✅ More memory for larger datasets' },
-  { id: 'ml.g5.large', name: 'ml.g5.large', cost: 0.61, description: 'GPU - ⚠️ May need quota increase' },
-  { id: 'ml.g5.xlarge', name: 'ml.g5.xlarge', cost: 1.01, description: 'GPU - ⚠️ May need quota increase' },
-  { id: 'ml.g5.2xlarge', name: 'ml.g5.2xlarge', cost: 1.21, description: 'GPU - ⚠️ May need quota increase' },
-  { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: 'GPU - ⚠️ May need quota increase' }
+  { id: 'ml.m5.large', name: 'ml.m5.large', cost: 0.096, description: 'CPU - ✅ RECOMMENDED: Available immediately, great for testing' },
+  { id: 'ml.c5.large', name: 'ml.c5.large', cost: 0.085, description: 'CPU - ✅ Available immediately, compute optimized' },
+  { id: 'ml.m5.xlarge', name: 'ml.m5.xlarge', cost: 0.192, description: 'CPU - ✅ Available immediately, more memory' },
+  { id: 'ml.g5.large', name: 'ml.g5.large', cost: 0.61, description: 'GPU - ⚠️ May need quota increase request' },
+  { id: 'ml.g5.xlarge', name: 'ml.g5.xlarge', cost: 1.01, description: 'GPU - ⚠️ May need quota increase request' },
+  { id: 'ml.g5.2xlarge', name: 'ml.g5.2xlarge', cost: 1.21, description: 'GPU - ⚠️ May need quota increase request' },
+  { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: 'GPU - ⚠️ May need quota increase request' }
 ];
 
 export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingProps) {
@@ -90,6 +90,7 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
       return;
     }
 
+    console.log('Starting training with instance:', selectedInstance);
     setIsTraining(true);
 
     try {
@@ -100,7 +101,7 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         instance_type: selectedInstance
       };
 
-      const response = await fetch('/api/jumpstart-training', {
+      const response = await fetch('/api/sagemaker-training', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
