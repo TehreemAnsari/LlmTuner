@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import FileUpload from "../components/file-upload";
 import Hyperparameters from "../components/hyperparameters";
-import SageMakerTrainingFixed from "../components/sagemaker-training-fixed";
+import SageMakerTraining from "../components/sagemaker-training";
 import ModelTesting from "../components/model-testing";
 
 const Dashboard: React.FC = () => {
@@ -15,8 +15,6 @@ const Dashboard: React.FC = () => {
     setUploadedFiles(files);
   };
 
-  console.log('🔍 Dashboard loading - checking which SageMaker component will be used');
-  
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm border-b">
@@ -99,10 +97,7 @@ const Dashboard: React.FC = () => {
               
               <div className="p-6">
                 {activeTab === 'sagemaker' ? (
-                  (() => {
-                    console.log('🔄 Dashboard: Loading SageMaker Training component');
-                    return <SageMakerTrainingFixed uploadedFiles={uploadedFiles} />;
-                  })()
+                  <SageMakerTraining uploadedFiles={uploadedFiles} />
                 ) : activeTab === 'testing' ? (
                   <ModelTesting trainingJobs={trainingJobs} />
                 ) : (
