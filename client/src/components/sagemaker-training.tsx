@@ -37,6 +37,14 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
   const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
   const [estimatedCost, setEstimatedCost] = useState({ hourly_cost: 0.096, total_estimated_cost: 0.192 });
   
+  // Debug: Force correct instance if somehow it gets changed
+  React.useEffect(() => {
+    if (selectedInstance !== 'ml.m5.large') {
+      console.log('Fixing instance from', selectedInstance, 'to ml.m5.large');
+      setSelectedInstance('ml.m5.large');
+    }
+  }, []);
+  
   // Hyperparameters
   const [hyperparameters, setHyperparameters] = useState({
     learning_rate: 0.0001,
@@ -139,6 +147,12 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
       <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">
         🚀 AWS SageMaker LLM Fine-Tuning
       </h2>
+      
+      <div className="mb-4 p-3 bg-green-50 dark:bg-green-900 rounded-lg border border-green-200 dark:border-green-700">
+        <p className="text-sm text-green-800 dark:text-green-200">
+          ✅ <strong>All 7 instance types available!</strong> Default: {selectedInstance} ({instanceTypes.length} total options)
+        </p>
+      </div>
       
       {/* Model Selection */}
       <div className="mb-6">
