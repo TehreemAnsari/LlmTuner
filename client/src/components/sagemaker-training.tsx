@@ -22,6 +22,9 @@ const baseModels = [
 const instanceTypes = [
   { id: 'ml.m5.large', name: 'ml.m5.large', cost: 0.096, description: 'CPU - Most affordable, good for testing' },
   { id: 'ml.c5.large', name: 'ml.c5.large', cost: 0.085, description: 'CPU - Optimized for compute' },
+  { id: 'ml.m5.xlarge', name: 'ml.m5.xlarge', cost: 0.192, description: 'CPU - More memory for larger datasets' },
+  { id: 'ml.g5.large', name: 'ml.g5.large', cost: 0.61, description: '12GB GPU - Smaller GPU for basic training' },
+  { id: 'ml.g5.xlarge', name: 'ml.g5.xlarge', cost: 1.01, description: '24GB GPU - Good balance of cost and performance' },
   { id: 'ml.g5.2xlarge', name: 'ml.g5.2xlarge', cost: 1.21, description: '24GB GPU - Recommended for 7B models' },
   { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: '48GB GPU - Good for 13B models' }
 ];

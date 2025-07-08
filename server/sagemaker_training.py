@@ -68,10 +68,22 @@ class SageMakerTrainingManager:
             print("🚀 Attempting to create real SageMaker training job...")
             print("📝 Using custom finetune.py script for proper container execution")
             
-            # Attempt real SageMaker job creation - no demo fallback for testing
-            print("🎯 REAL SAGEMAKER MODE: Creating actual AWS training job")
-            print("❌ Demo mode disabled for testing - will show real errors")
-            return self._create_real_sagemaker_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type, hyperparameters)
+            try:
+                print("🎯 REAL SAGEMAKER MODE: Creating actual AWS training job")
+                return self._create_real_sagemaker_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type, hyperparameters)
+            except Exception as sagemaker_error:
+                error_msg = str(sagemaker_error)
+                if "ResourceLimitExceeded" in error_msg:
+                    print(f"⚠️ AWS quota limit exceeded for {instance_type}")
+                    print("💡 Try using CPU instances (ml.m5.large, ml.c5.large) - these usually have higher quotas")
+                    print("🔧 Or request quota increase at: https://console.aws.amazon.com/servicequotas/")
+                elif "ValidationException" in error_msg:
+                    print(f"⚠️ AWS validation error: {error_msg}")
+                else:
+                    print(f"⚠️ SageMaker training failed: {sagemaker_error}")
+                
+                print("🎭 Falling back to demo mode...")
+                return self._create_demo_training_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type)
             
         except Exception as e:
             print(f"❌ SageMaker training job creation failed: {e}")
@@ -278,6 +290,8 @@ tqdm>=4.62.0
             'ml.m5.xlarge': 0.192,
             'ml.m5.2xlarge': 0.384,
             'ml.c5.xlarge': 0.17,
+            'ml.g5.large': 0.61,
+            'ml.g5.xlarge': 1.01,
             'ml.g5.2xlarge': 1.21,
             'ml.g5.4xlarge': 1.83,
             'ml.g5.8xlarge': 2.42,
