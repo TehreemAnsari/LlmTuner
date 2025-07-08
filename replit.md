@@ -9,6 +9,7 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 
 ## Recent Changes
 
+- ✅ **UI Instance Type Display Bug Fixed** (Jul 8): Resolved critical frontend caching issue where SageMaker component displayed only 3 instance types instead of 8. Created new component file `sagemaker-training-fixed.tsx` to bypass Vite build cache poisoning. All 8 instance types (CPU: ml.m5.large, ml.c5.large, ml.m5.xlarge + GPU: ml.g5.large, ml.g5.xlarge, ml.g5.2xlarge, ml.g5.4xlarge, ml.p3.2xlarge) now display correctly in dropdown
 - ✅ **Real AWS SageMaker Training Success** (Jul 8): Successfully created and ran real AWS SageMaker training job `llm-tune-google10-llama27b-20250708002509` using CPU instance (ml.m5.large) with custom finetune.py script processing 55,620 actual data samples
 - ✅ **SageMaker Container Script Fix** (Jul 8): Fixed critical script packaging issue - now properly creates tar.gz archives for SageMaker container deployment to `/opt/ml/code/` directory
 - ✅ **AWS Quota Management Solution** (Jul 8): Implemented intelligent quota handling - CPU instances work immediately while GPU instances require quota increases through AWS Service Quotas
