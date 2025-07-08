@@ -32,9 +32,10 @@ const FULL_INSTANCE_TYPES = [
 
 console.log('🎯 OVERWRITE: Loading', FULL_INSTANCE_TYPES.length, 'instance types');
 
-// Cache-busting version identifier
-const COMPONENT_VERSION = 'v2.0-fixed-' + Date.now();
-console.log('📦 SageMaker Component Version:', COMPONENT_VERSION);
+// FORCE REBUILD - Cache-busting version identifier
+const COMPONENT_VERSION = 'v3.0-REBUILD-' + Date.now();
+console.log('🔥 FORCED REBUILD - SageMaker Component Version:', COMPONENT_VERSION);
+window.SAGEMAKER_COMPONENT_VERSION = COMPONENT_VERSION;
 
 export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingProps) {
   const { token } = useAuth();
@@ -160,8 +161,8 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-6 text-green-600 bg-yellow-100 p-4 rounded border-4 border-green-500">
-        ✅ FIXED COMPONENT: AWS SageMaker LLM Fine-Tuning - ALL {FULL_INSTANCE_TYPES.length} INSTANCES
+      <h2 className="text-2xl font-bold mb-6 text-red-600 bg-red-100 p-4 rounded border-4 border-red-500">
+        🔥 REBUILT COMPONENT v3.0: AWS SageMaker LLM Fine-Tuning - ALL {FULL_INSTANCE_TYPES.length} INSTANCES
       </h2>
       
       <div className="mb-4 p-3 bg-green-50 border-4 border-green-400 rounded-lg">
