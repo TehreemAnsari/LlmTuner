@@ -68,12 +68,10 @@ class SageMakerTrainingManager:
             print("🚀 Attempting to create real SageMaker training job...")
             print("📝 Using custom finetune.py script for proper container execution")
             
-            try:
-                return self._create_real_sagemaker_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type, hyperparameters)
-            except Exception as sagemaker_error:
-                print(f"⚠️ SageMaker training failed: {sagemaker_error}")
-                print("🎭 Falling back to demo mode...")
-                return self._create_demo_training_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type)
+            # Attempt real SageMaker job creation - no demo fallback for testing
+            print("🎯 REAL SAGEMAKER MODE: Creating actual AWS training job")
+            print("❌ Demo mode disabled for testing - will show real errors")
+            return self._create_real_sagemaker_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type, hyperparameters)
             
         except Exception as e:
             print(f"❌ SageMaker training job creation failed: {e}")
@@ -157,6 +155,11 @@ class SageMakerTrainingManager:
         print(f"📤 Output location: {output_s3_uri}")
         print(f"⚙️ Instance type: {instance_type}")
         print(f"💰 Estimated cost: ${self._get_instance_cost(instance_type)}/hour")
+        print(f"🏷️ AWS-compliant job name: {job_name}")
+        
+        # Validate job name before submission
+        if not job_name.replace('-', '').replace('_', '').isalnum():
+            raise ValueError(f"Invalid job name format: {job_name}")
         
         response = self.sagemaker_client.create_training_job(**training_job_config)
         
@@ -522,12 +525,21 @@ tqdm>=4.62.0
         return training_data_s3_uri
 
     def generate_job_name(self, user_id: str, base_model: str) -> str:
-        """Generate unique training job name"""
+        """Generate unique training job name compliant with AWS SageMaker naming rules"""
         
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        user_prefix = user_id[:10].replace('@', '').replace('.', '')
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        # Clean user_id to be AWS compliant (alphanumeric and hyphens only)
+        user_prefix = ''.join(c for c in user_id if c.isalnum())[:8]
+        # Clean model name to be AWS compliant
+        model_name = ''.join(c for c in base_model if c.isalnum())
         
-        return f"llm-tune-{user_prefix}-{base_model}-{timestamp}"
+        # AWS SageMaker naming rules: alphanumeric and hyphens only, max 63 chars
+        job_name = f"llm-tune-{user_prefix}-{model_name}-{timestamp}"
+        
+        # Ensure it doesn't start or end with hyphen and is within length limit
+        job_name = job_name.strip('-')[:63]
+        
+        return job_name
 
     def deploy_model(self, model_s3_uri: str, model_name: str, instance_type: str = "ml.g5.xlarge") -> Dict[str, Any]:
         """Deploy trained model to SageMaker endpoint for inference"""

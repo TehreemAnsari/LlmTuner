@@ -712,6 +712,7 @@ async def start_sagemaker_training(request: SageMakerTrainingRequest, current_us
     try:
         # Generate unique job name
         job_name = sagemaker_manager.generate_job_name(user_id, request.base_model)
+        print(f"🏷️ Generated AWS-compliant job name: {job_name}")
         
         # Prepare training data in SageMaker format
         training_data_s3_uri = sagemaker_manager.prepare_training_data(user_id, request.files)
