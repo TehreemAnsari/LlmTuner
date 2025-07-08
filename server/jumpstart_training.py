@@ -24,8 +24,8 @@ class JumpStartTrainingManager:
                 'description': 'Meta Llama 2 7B - Fine-tuning ready',
                 'task': 'text-generation',
                 'framework': 'huggingface',
-                'instance_types': ['ml.g5.2xlarge', 'ml.g5.4xlarge', 'ml.p3.2xlarge'],
-                'min_instance': 'ml.g5.2xlarge'
+                'instance_types': ['ml.m5.large', 'ml.c5.large', 'ml.m5.xlarge', 'ml.g5.large', 'ml.g5.xlarge', 'ml.g5.2xlarge', 'ml.g5.4xlarge'],
+                'min_instance': 'ml.m5.large'
             },
             {
                 'model_id': 'huggingface-llm-llama-2-13b-f',
@@ -33,8 +33,8 @@ class JumpStartTrainingManager:
                 'description': 'Meta Llama 2 13B - Fine-tuning ready',
                 'task': 'text-generation',
                 'framework': 'huggingface',
-                'instance_types': ['ml.g5.4xlarge', 'ml.g5.8xlarge', 'ml.p3.8xlarge'],
-                'min_instance': 'ml.g5.4xlarge'
+                'instance_types': ['ml.m5.large', 'ml.c5.large', 'ml.m5.xlarge', 'ml.g5.large', 'ml.g5.xlarge', 'ml.g5.2xlarge', 'ml.g5.4xlarge'],
+                'min_instance': 'ml.m5.large'
             },
             {
                 'model_id': 'huggingface-text2text-flan-t5-xl',
@@ -42,8 +42,8 @@ class JumpStartTrainingManager:
                 'description': 'Google FLAN-T5 XL - Instruction-tuned',
                 'task': 'text2text-generation',
                 'framework': 'huggingface',
-                'instance_types': ['ml.g5.2xlarge', 'ml.g5.4xlarge', 'ml.p3.2xlarge'],
-                'min_instance': 'ml.g5.2xlarge'
+                'instance_types': ['ml.m5.large', 'ml.c5.large', 'ml.m5.xlarge', 'ml.g5.large', 'ml.g5.xlarge', 'ml.g5.2xlarge', 'ml.g5.4xlarge'],
+                'min_instance': 'ml.m5.large'
             }
         ]
         
@@ -56,7 +56,7 @@ class JumpStartTrainingManager:
         training_data_s3_uri: str,
         output_s3_uri: str,
         hyperparameters: Dict[str, Any],
-        instance_type: str = 'ml.g5.2xlarge'
+        instance_type: str = 'ml.m5.large'
     ) -> Dict[str, Any]:
         """Create a JumpStart training job"""
         
