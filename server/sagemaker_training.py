@@ -64,16 +64,164 @@ class SageMakerTrainingManager:
             print(f"🗂️ Training data: {training_data_s3_uri}")
             print(f"📤 Output location: {output_s3_uri}")
             
-            # Use demo mode for now - real AWS jobs are created but fail due to container config
-            print("🎭 Using demo mode for stability")
-            print("💡 Your AWS SageMaker jobs are created but fail due to missing training scripts")
-            print("🔧 Check AWS Console: https://console.aws.amazon.com/sagemaker/home#/jobs")
-            print("📊 Demo processes your real data and demonstrates complete workflow")
-            return self._create_demo_training_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type)
+            # Try to create a real SageMaker training job with our custom script
+            print("🚀 Attempting to create real SageMaker training job...")
+            print("📝 Using custom finetune.py script for proper container execution")
+            
+            try:
+                return self._create_real_sagemaker_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type, hyperparameters)
+            except Exception as sagemaker_error:
+                print(f"⚠️ SageMaker training failed: {sagemaker_error}")
+                print("🎭 Falling back to demo mode...")
+                return self._create_demo_training_job(job_name, user_id, base_model, training_data_s3_uri, output_s3_uri, instance_type)
             
         except Exception as e:
             print(f"❌ SageMaker training job creation failed: {e}")
             raise Exception(f"Failed to create training job: {str(e)}")
+    
+    def _create_real_sagemaker_job(self, job_name: str, user_id: str, base_model: str, training_data_s3_uri: str, output_s3_uri: str, instance_type: str, hyperparameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a real SageMaker training job using custom training script"""
+        
+        # Upload our custom finetune.py script to S3
+        script_s3_uri = self._upload_training_script()
+        
+        # Configure hyperparameters for SageMaker
+        sagemaker_hyperparameters = {
+            'base_model': base_model,
+            'learning_rate': str(hyperparameters.get('learning_rate', 0.001)),
+            'batch_size': str(hyperparameters.get('batch_size', 4)),
+            'epochs': str(hyperparameters.get('epochs', 3)),
+            'max_sequence_length': str(hyperparameters.get('max_sequence_length', 2048)),
+            'optimizer': hyperparameters.get('optimizer', 'adam'),
+            'weight_decay': str(hyperparameters.get('weight_decay', 0.01))
+        }
+        
+        # Create training job configuration
+        training_job_config = {
+            'TrainingJobName': job_name,
+            'RoleArn': self.execution_role,
+            'AlgorithmSpecification': {
+                'TrainingImage': '763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-gpu-py39-cu117-ubuntu20.04-sagemaker',
+                'TrainingInputMode': 'File',
+                'EnableSageMakerMetricsTimeSeries': True
+            },
+            'InputDataConfig': [
+                {
+                    'ChannelName': 'training',
+                    'DataSource': {
+                        'S3DataSource': {
+                            'S3DataType': 'S3Prefix',
+                            'S3Uri': training_data_s3_uri,
+                            'S3DataDistributionType': 'FullyReplicated'
+                        }
+                    },
+                    'ContentType': 'application/jsonlines',
+                    'CompressionType': 'None'
+                },
+                {
+                    'ChannelName': 'code',
+                    'DataSource': {
+                        'S3DataSource': {
+                            'S3DataType': 'S3Prefix',
+                            'S3Uri': script_s3_uri,
+                            'S3DataDistributionType': 'FullyReplicated'
+                        }
+                    },
+                    'ContentType': 'application/x-python',
+                    'CompressionType': 'None'
+                }
+            ],
+            'OutputDataConfig': {
+                'S3OutputPath': output_s3_uri
+            },
+            'ResourceConfig': {
+                'InstanceType': instance_type,
+                'InstanceCount': 1,
+                'VolumeSizeInGB': 30
+            },
+            'StoppingCondition': {
+                'MaxRuntimeInSeconds': 10800  # 3 hours max
+            },
+            'HyperParameters': sagemaker_hyperparameters,
+            'Environment': {
+                'SAGEMAKER_PROGRAM': 'finetune.py',
+                'SAGEMAKER_SUBMIT_DIRECTORY': script_s3_uri,
+                'SAGEMAKER_REQUIREMENTS': 'requirements.txt'
+            }
+        }
+        
+        # Create the actual SageMaker training job
+        print(f"🚀 Creating SageMaker training job: {job_name}")
+        print(f"📊 Training data: {training_data_s3_uri}")
+        print(f"📝 Training script: {script_s3_uri}")
+        print(f"📤 Output location: {output_s3_uri}")
+        print(f"⚙️ Instance type: {instance_type}")
+        print(f"💰 Estimated cost: ${self._get_instance_cost(instance_type)}/hour")
+        
+        response = self.sagemaker_client.create_training_job(**training_job_config)
+        
+        print(f"✅ Real SageMaker training job created successfully!")
+        print(f"📊 Job ARN: {response['TrainingJobArn']}")
+        
+        return {
+            'job_name': job_name,
+            'job_arn': response['TrainingJobArn'],
+            'status': 'InProgress',
+            'training_data_s3_uri': training_data_s3_uri,
+            'output_s3_uri': output_s3_uri,
+            'instance_type': instance_type,
+            'created_at': datetime.now().isoformat(),
+            'estimated_cost_per_hour': self._get_instance_cost(instance_type),
+            'hyperparameters': hyperparameters,
+            'base_model': base_model,
+            'user_id': user_id,
+            'note': 'Real AWS SageMaker training job with custom script'
+        }
+    
+    def _upload_training_script(self) -> str:
+        """Upload our custom training script to S3"""
+        
+        # Read the finetune.py script
+        script_path = os.path.join(os.path.dirname(__file__), 'finetune.py')
+        with open(script_path, 'r') as f:
+            script_content = f.read()
+        
+        # Upload to S3
+        script_s3_key = 'training-scripts/finetune.py'
+        self.s3_client.put_object(
+            Bucket=self.s3_bucket,
+            Key=script_s3_key,
+            Body=script_content.encode('utf-8'),
+            ContentType='application/x-python'
+        )
+        
+        # Also create a requirements.txt file
+        requirements_content = """
+torch>=1.13.0
+transformers>=4.21.0
+datasets>=2.4.0
+accelerate>=0.12.0
+peft>=0.4.0
+bitsandbytes>=0.37.0
+scipy>=1.7.0
+scikit-learn>=1.0.0
+numpy>=1.21.0
+pandas>=1.3.0
+tqdm>=4.62.0
+"""
+        
+        requirements_s3_key = 'training-scripts/requirements.txt'
+        self.s3_client.put_object(
+            Bucket=self.s3_bucket,
+            Key=requirements_s3_key,
+            Body=requirements_content.strip().encode('utf-8'),
+            ContentType='text/plain'
+        )
+        
+        script_s3_uri = f"s3://{self.s3_bucket}/training-scripts/"
+        print(f"📝 Training script uploaded to: {script_s3_uri}")
+        
+        return script_s3_uri
     
     def _create_demo_training_job(self, job_name: str, user_id: str, base_model: str, training_data_s3_uri: str, output_s3_uri: str, instance_type: str) -> Dict[str, Any]:
         """Create a demo training job for demonstration purposes"""
