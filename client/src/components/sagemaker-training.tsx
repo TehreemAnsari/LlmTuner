@@ -19,24 +19,33 @@ const baseModels = [
   { id: 'flan-t5-xl', name: 'FLAN-T5 XL', description: 'Google FLAN-T5 XL - Instruction-tuned model' }
 ];
 
-const instanceTypes = [
-  { id: 'ml.m5.large', name: 'ml.m5.large', cost: 0.096, description: 'CPU - ✅ RECOMMENDED: Available immediately, great for testing' },
-  { id: 'ml.c5.large', name: 'ml.c5.large', cost: 0.085, description: 'CPU - ✅ Available immediately, compute optimized' },
-  { id: 'ml.m5.xlarge', name: 'ml.m5.xlarge', cost: 0.192, description: 'CPU - ✅ Available immediately, more memory' },
-  { id: 'ml.g5.large', name: 'ml.g5.large', cost: 0.61, description: 'GPU - ⚠️ May need quota increase request' },
-  { id: 'ml.g5.xlarge', name: 'ml.g5.xlarge', cost: 1.01, description: 'GPU - ⚠️ May need quota increase request' },
-  { id: 'ml.g5.2xlarge', name: 'ml.g5.2xlarge', cost: 1.21, description: 'GPU - ⚠️ May need quota increase request' },
-  { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: 'GPU - ⚠️ May need quota increase request' },
-  { id: 'ml.p3.2xlarge', name: 'ml.p3.2xlarge', cost: 3.06, description: 'GPU - ⚠️ May need quota increase request' }
-];
+// Generate instance types dynamically to force refresh
+const getAllInstanceTypes = () => {
+  const types = [
+    { id: 'ml.m5.large', name: 'ml.m5.large', cost: 0.096, description: 'CPU - ✅ RECOMMENDED: Available immediately, great for testing' },
+    { id: 'ml.c5.large', name: 'ml.c5.large', cost: 0.085, description: 'CPU - ✅ Available immediately, compute optimized' },
+    { id: 'ml.m5.xlarge', name: 'ml.m5.xlarge', cost: 0.192, description: 'CPU - ✅ Available immediately, more memory' },
+    { id: 'ml.g5.large', name: 'ml.g5.large', cost: 0.61, description: 'GPU - ⚠️ May need quota increase request' },
+    { id: 'ml.g5.xlarge', name: 'ml.g5.xlarge', cost: 1.01, description: 'GPU - ⚠️ May need quota increase request' },
+    { id: 'ml.g5.2xlarge', name: 'ml.g5.2xlarge', cost: 1.21, description: 'GPU - ⚠️ May need quota increase request' },
+    { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: 'GPU - ⚠️ May need quota increase request' },
+    { id: 'ml.p3.2xlarge', name: 'ml.p3.2xlarge', cost: 3.06, description: 'GPU - ⚠️ May need quota increase request' }
+  ];
+  console.log('🔍 DEBUG: Generated instance types:', types.length, types.map(i => i.id));
+  return types;
+};
 
-// Debug: Log instance types to console
-console.log('Available instance types:', instanceTypes.length, instanceTypes.map(i => i.id));
+const instanceTypes = getAllInstanceTypes();
 
 export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingProps) {
   const { token } = useAuth();
   const [selectedModel, setSelectedModel] = useState('llama-2-7b');
   const [selectedInstance, setSelectedInstance] = useState('ml.m5.large');
+  
+  // Force component to show debug info
+  console.log('🚀 SageMakerTraining component loaded!');
+  console.log('🔍 Instance types available:', instanceTypes.length);
+  console.log('🔍 First few instance types:', instanceTypes.slice(0, 3).map(i => i.id));
   const [isTraining, setIsTraining] = useState(false);
   const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
   const [estimatedCost, setEstimatedCost] = useState({ hourly_cost: 0.096, total_estimated_cost: 0.192 });
@@ -161,9 +170,12 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         🚀 AWS SageMaker LLM Fine-Tuning
       </h2>
       
-      <div className="mb-4 p-3 bg-green-50 dark:bg-green-900 rounded-lg border border-green-200 dark:border-green-700">
-        <p className="text-sm text-green-800 dark:text-green-200">
-          ✅ <strong>All {instanceTypes.length} instance types available!</strong> Default: {selectedInstance} ({instanceTypes.length} total options)
+      <div className="mb-4 p-3 bg-red-50 dark:bg-red-900 rounded-lg border border-red-200 dark:border-red-700">
+        <p className="text-sm text-red-800 dark:text-red-200">
+          ⚠️ <strong>DEBUG MODE: {instanceTypes.length} instance types loaded!</strong> Default: {selectedInstance} ({instanceTypes.length} total options)
+        </p>
+        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+          Instance IDs: {instanceTypes.map(i => i.id).join(', ')}
         </p>
       </div>
       
@@ -198,17 +210,23 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
           }}
           className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
         >
-          {instanceTypes.map(instance => (
-            <option key={instance.id} value={instance.id}>
-              {instance.name} - ${instance.cost}/hr - {instance.description}
-            </option>
-          ))}
+          {instanceTypes.map((instance, index) => {
+            console.log(`🔍 Rendering option ${index + 1}:`, instance.id);
+            return (
+              <option key={instance.id} value={instance.id}>
+                {instance.name} - ${instance.cost}/hr - {instance.description}
+              </option>
+            );
+          })}
         </select>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
           💡 <strong>ml.m5.large</strong> is recommended - works immediately without quota increases
         </p>
         <div className="text-xs text-gray-500 mt-1">
           Available options: {instanceTypes.length} total
+        </div>
+        <div className="text-xs text-red-500 mt-1">
+          🔍 DEBUG: Actual instance IDs: {instanceTypes.map(i => i.id).join(', ')}
         </div>
       </div>
 
