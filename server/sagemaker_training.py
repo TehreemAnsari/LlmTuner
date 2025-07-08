@@ -194,49 +194,56 @@ class SageMakerTrainingManager:
         }
     
     def _upload_training_script(self) -> str:
-        """Upload our custom training script to S3"""
+        """Upload our custom training script to S3 as a proper source code package"""
+        import tarfile
+        import tempfile
         
-        # Read the finetune.py script
-        script_path = os.path.join(os.path.dirname(__file__), 'finetune.py')
-        with open(script_path, 'r') as f:
-            script_content = f.read()
-        
-        # Upload to S3
-        script_s3_key = 'training-scripts/finetune.py'
-        self.s3_client.put_object(
-            Bucket=self.s3_bucket,
-            Key=script_s3_key,
-            Body=script_content.encode('utf-8'),
-            ContentType='application/x-python'
-        )
-        
-        # Also create a requirements.txt file
-        requirements_content = """
-torch>=1.13.0
+        # Create a temporary directory for the source code
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create source code directory structure
+            source_dir = os.path.join(temp_dir, "source")
+            os.makedirs(source_dir)
+            
+            # Copy finetune.py to source directory
+            script_path = os.path.join(os.path.dirname(__file__), 'finetune.py')
+            dest_path = os.path.join(source_dir, 'finetune.py')
+            
+            with open(script_path, 'r') as src, open(dest_path, 'w') as dst:
+                dst.write(src.read())
+            
+            # Create requirements.txt
+            requirements_path = os.path.join(source_dir, 'requirements.txt')
+            
+            with open(requirements_path, 'w') as f:
+                f.write("""torch>=1.13.0
 transformers>=4.21.0
 datasets>=2.4.0
 accelerate>=0.12.0
 peft>=0.4.0
 bitsandbytes>=0.37.0
-scipy>=1.7.0
-scikit-learn>=1.0.0
+scikit-learn>=1.1.0
+pandas>=1.5.0
 numpy>=1.21.0
-pandas>=1.3.0
-tqdm>=4.62.0
-"""
-        
-        requirements_s3_key = 'training-scripts/requirements.txt'
-        self.s3_client.put_object(
-            Bucket=self.s3_bucket,
-            Key=requirements_s3_key,
-            Body=requirements_content.strip().encode('utf-8'),
-            ContentType='text/plain'
-        )
-        
-        script_s3_uri = f"s3://{self.s3_bucket}/training-scripts/"
-        print(f"📝 Training script uploaded to: {script_s3_uri}")
-        
-        return script_s3_uri
+""")
+            
+            # Create tarball
+            tarball_path = os.path.join(temp_dir, "sourcedir.tar.gz")
+            with tarfile.open(tarball_path, "w:gz") as tar:
+                tar.add(source_dir, arcname=".")
+            
+            # Upload tarball to S3
+            s3_key = "training-scripts/sourcedir.tar.gz"
+            
+            with open(tarball_path, 'rb') as f:
+                self.s3_client.put_object(
+                    Bucket=self.s3_bucket,
+                    Key=s3_key,
+                    Body=f.read(),
+                    ContentType='application/gzip'
+                )
+            
+            print(f"📝 Training script package uploaded to: s3://{self.s3_bucket}/{s3_key}")
+            return f"s3://{self.s3_bucket}/{s3_key}"
     
     def _create_demo_training_job(self, job_name: str, user_id: str, base_model: str, training_data_s3_uri: str, output_s3_uri: str, instance_type: str) -> Dict[str, Any]:
         """Create a demo training job for demonstration purposes"""
