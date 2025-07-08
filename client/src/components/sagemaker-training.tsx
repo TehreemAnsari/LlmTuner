@@ -26,8 +26,12 @@ const instanceTypes = [
   { id: 'ml.g5.large', name: 'ml.g5.large', cost: 0.61, description: 'GPU - ⚠️ May need quota increase request' },
   { id: 'ml.g5.xlarge', name: 'ml.g5.xlarge', cost: 1.01, description: 'GPU - ⚠️ May need quota increase request' },
   { id: 'ml.g5.2xlarge', name: 'ml.g5.2xlarge', cost: 1.21, description: 'GPU - ⚠️ May need quota increase request' },
-  { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: 'GPU - ⚠️ May need quota increase request' }
+  { id: 'ml.g5.4xlarge', name: 'ml.g5.4xlarge', cost: 1.83, description: 'GPU - ⚠️ May need quota increase request' },
+  { id: 'ml.p3.2xlarge', name: 'ml.p3.2xlarge', cost: 3.06, description: 'GPU - ⚠️ May need quota increase request' }
 ];
+
+// Debug: Log instance types to console
+console.log('Available instance types:', instanceTypes.length, instanceTypes.map(i => i.id));
 
 export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingProps) {
   const { token } = useAuth();
@@ -142,6 +146,15 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
     loadTrainingJobs();
   }, []);
 
+  // Debug: Log current state
+  React.useEffect(() => {
+    console.log('SageMaker component state:', {
+      selectedInstance,
+      instanceTypesCount: instanceTypes.length,
+      instanceTypeIds: instanceTypes.map(i => i.id)
+    });
+  }, [selectedInstance]);
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">
@@ -150,7 +163,7 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
       
       <div className="mb-4 p-3 bg-green-50 dark:bg-green-900 rounded-lg border border-green-200 dark:border-green-700">
         <p className="text-sm text-green-800 dark:text-green-200">
-          ✅ <strong>All 7 instance types available!</strong> Default: {selectedInstance} ({instanceTypes.length} total options)
+          ✅ <strong>All {instanceTypes.length} instance types available!</strong> Default: {selectedInstance} ({instanceTypes.length} total options)
         </p>
       </div>
       
