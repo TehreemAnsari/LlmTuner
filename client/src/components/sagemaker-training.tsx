@@ -32,6 +32,10 @@ const FULL_INSTANCE_TYPES = [
 
 console.log('🎯 OVERWRITE: Loading', FULL_INSTANCE_TYPES.length, 'instance types');
 
+// Cache-busting version identifier
+const COMPONENT_VERSION = 'v2.0-fixed-' + Date.now();
+console.log('📦 SageMaker Component Version:', COMPONENT_VERSION);
+
 export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingProps) {
   const { token } = useAuth();
   const [selectedModel, setSelectedModel] = useState('llama-2-7b');
@@ -149,8 +153,8 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
   React.useEffect(() => {
     console.log('SageMaker component state:', {
       selectedInstance,
-      instanceTypesCount: instanceTypes.length,
-      instanceTypeIds: instanceTypes.map(i => i.id)
+      instanceTypesCount: FULL_INSTANCE_TYPES.length,
+      instanceTypeIds: FULL_INSTANCE_TYPES.map(i => i.id)
     });
   }, [selectedInstance]);
 

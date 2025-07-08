@@ -15,6 +15,8 @@ const Dashboard: React.FC = () => {
     setUploadedFiles(files);
   };
 
+  console.log('🔍 Dashboard loading - checking which SageMaker component will be used');
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm border-b">
@@ -97,7 +99,10 @@ const Dashboard: React.FC = () => {
               
               <div className="p-6">
                 {activeTab === 'sagemaker' ? (
-                  <SageMakerTraining uploadedFiles={uploadedFiles} />
+                  (() => {
+                    console.log('🔄 Dashboard: Loading SageMaker Training component');
+                    return <SageMakerTraining uploadedFiles={uploadedFiles} />;
+                  })()
                 ) : activeTab === 'testing' ? (
                   <ModelTesting trainingJobs={trainingJobs} />
                 ) : (
