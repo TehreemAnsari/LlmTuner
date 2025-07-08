@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cache Clear Test</title>
+    <script>
+        // Force clear all caches
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                names.forEach(function(name) {
+                    caches.delete(name);
+                });
+            });
+        }
+        
+        // Reload with cache bypass
+        setTimeout(function() {
+            window.location.href = '/?nocache=' + Date.now();
+        }, 1000);
+    </script>
+</head>
+<body>
+    <h1>Clearing cache and reloading...</h1>
+</body>
+</html>
