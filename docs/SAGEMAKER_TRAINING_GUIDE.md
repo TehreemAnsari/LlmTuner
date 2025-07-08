@@ -37,6 +37,45 @@ Your LLM Tuner Platform successfully:
 - ✅ **Implemented intelligent instance fallback** (ml.g5.2xlarge → ml.m5.large)
 - ✅ **Created comprehensive monitoring** and testing interface
 
+## SageMaker Container File System
+
+When AWS SageMaker starts a training job, it creates a Docker container with this structure:
+
+```
+/opt/ml/
+├── code/           # Your training script gets extracted here
+│   ├── finetune.py
+│   └── requirements.txt
+├── input/          # Training data
+│   └── data/
+│       └── training/
+│           └── train.jsonl
+├── output/         # Model artifacts saved here
+│   └── data/
+└── model/          # Final model location
+```
+
+### Key Points:
+- `/opt/ml/code/` only exists **during** training job execution inside the AWS container
+- Directory is created when job starts and destroyed when it ends
+- Your training script is extracted from the uploaded tar.gz package
+- All training data is available in `/opt/ml/input/data/training/`
+- Model artifacts must be saved to `/opt/ml/output/data/` for retrieval
+
+### Accessing Container Information:
+1. **CloudWatch Logs**: Monitor script execution in real-time at [CloudWatch Console](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups)
+2. **SageMaker Console**: View training progress and metrics
+3. **Log Group**: `/aws/sagemaker/TrainingJobs` in CloudWatch
+4. **Log Stream**: Your specific job name (e.g., `llm-tune-google10-llama27b-20250708002509`)
+
+### During Training You'll See:
+```
+2025-07-08 00:30:36 - INFO - Starting SageMaker LLM Trainer
+2025-07-08 00:30:36 - INFO - Loading training data from /opt/ml/input/data/training/
+2025-07-08 00:30:36 - INFO - Found finetune.py in /opt/ml/code/
+2025-07-08 00:30:36 - INFO - Processing 55,620 training samples...
+```
+
 ## Next Steps
 
 1. **Use SageMaker JumpStart**: Access pre-built Llama 2 fine-tuning

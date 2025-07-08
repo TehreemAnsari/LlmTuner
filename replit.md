@@ -10,6 +10,7 @@ A clean, minimalist web platform for fine-tuning Large Language Models. Built wi
 ## Recent Changes
 
 - ✅ **Real AWS SageMaker Training Success** (Jul 8): Successfully created and ran real AWS SageMaker training job `llm-tune-google10-llama27b-20250708002509` using CPU instance (ml.m5.large) with custom finetune.py script processing 55,620 actual data samples
+- ✅ **SageMaker Container Script Fix** (Jul 8): Fixed critical script packaging issue - now properly creates tar.gz archives for SageMaker container deployment to `/opt/ml/code/` directory
 - ✅ **AWS Quota Management Solution** (Jul 8): Implemented intelligent quota handling - CPU instances work immediately while GPU instances require quota increases through AWS Service Quotas
 - ✅ **Real AWS SageMaker Training Implementation** (Jul 8): Created complete solution for real AWS SageMaker training jobs using custom finetune.py script based on working gpt2_tuning.py code, with proper hyperparameter passing and fallback to demo mode
 - ✅ **Custom Training Script Creation** (Jul 8): Developed SageMaker-compatible finetune.py script that processes actual user data, supports multiple formats, and handles proper model training with AWS containers
