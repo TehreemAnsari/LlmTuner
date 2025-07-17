@@ -20,6 +20,9 @@ cp gpt2_tuning.py dist/
 cp pyproject.toml dist/
 cp start-production.py dist/
 
+# Copy the root main.py for direct execution
+cp main.py dist/
+
 # Create uploads directory in dist
 mkdir -p dist/uploads
 
@@ -27,7 +30,7 @@ echo "✅ Build completed successfully!"
 echo "📁 Files in dist directory:"
 ls -la dist/
 
-# Fix deployment compatibility by creating a simple start script
+# Update the start script to use the correct import path
 echo "🔧 Creating deployment-compatible start script..."
 cat > dist/start.py << 'EOF'
 #!/usr/bin/env python3
@@ -63,4 +66,7 @@ EOF
 chmod +x dist/start.py
 
 echo "🎯 Deployment build complete!"
-echo "📋 To deploy, run: python dist/start.py"
+echo "📋 Available deployment options:"
+echo "   - Option 1: python main.py (direct execution)"
+echo "   - Option 2: python dist/start.py (from dist directory)"
+echo "   - Option 3: python start-production.py (production mode)"

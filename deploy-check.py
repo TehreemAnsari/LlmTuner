@@ -64,10 +64,18 @@ def check_deployment_readiness():
 def test_python_import():
     """Test if main.py can be imported successfully"""
     try:
-        sys.path.insert(0, "dist")
-        from main import app
-        print("✅ main.py imports successfully")
-        return True
+        # Change to dist directory for testing
+        import os
+        original_dir = os.getcwd()
+        os.chdir("dist")
+        
+        try:
+            sys.path.insert(0, ".")
+            from main import app
+            print("✅ main.py imports successfully")
+            return True
+        finally:
+            os.chdir(original_dir)
     except Exception as e:
         print(f"❌ Error importing main.py: {e}")
         return False
