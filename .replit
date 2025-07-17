@@ -8,8 +8,8 @@ packages = ["cargo", "gdb", "libiconv", "libxcrypt", "rustc"]
 
 [deployment]
 deploymentTarget = "autoscale"
-build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+build = ["./build.sh"]
+run = ["python", "start-production.py"]
 
 [[ports]]
 localPort = 3001
