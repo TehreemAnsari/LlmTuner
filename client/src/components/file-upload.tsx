@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
 interface FileUploadProps {
@@ -9,8 +9,37 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [fileHistory, setFileHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { token } = useAuth();
+
+  // Load file history on component mount
+  useEffect(() => {
+    if (token) {
+      loadFileHistory();
+    }
+  }, [token]);
+
+  const loadFileHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch('/api/file-history', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setFileHistory(data.files || []);
+      }
+    } catch (error) {
+      console.error('Error loading file history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -88,6 +117,9 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
       
       onFilesUploaded(selectedFiles);
       setSelectedFiles([]);
+      
+      // Refresh file history after upload
+      loadFileHistory();
     } catch (error) {
       console.error("Upload error:", error);
       alert("Upload failed. Please try again.");
@@ -165,6 +197,65 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
           ))}
         </div>
       )}
+
+      {/* User File History Section */}
+      <div className="mt-8 border-t pt-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">User File History</h3>
+          <button
+            onClick={loadFileHistory}
+            disabled={loadingHistory}
+            className="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-50"
+          >
+            {loadingHistory ? '⟳' : '↻'} Refresh
+          </button>
+        </div>
+
+        {loadingHistory ? (
+          <div className="text-center py-4">
+            <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            <p className="mt-2 text-sm text-gray-500">Loading file history...</p>
+          </div>
+        ) : fileHistory.length > 0 ? (
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {fileHistory.map((file, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-900">{file.name}</span>
+                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                      {file.type || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                    <span>Size: {file.size ? formatFileSize(file.size) : 'Unknown'}</span>
+                    {file.lines && <span>Lines: {file.lines.toLocaleString()}</span>}
+                    {file.upload_date && <span>Uploaded: {new Date(file.upload_date).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-green-600 font-medium">✓ Uploaded</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-4xl mb-2">📁</div>
+            <p className="text-sm">No files uploaded yet</p>
+            <p className="text-xs mt-1">Upload your first training file to get started!</p>
+          </div>
+        )}
+      </div>
     </div>
   );
+}
+
+// Helper function to format file size
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }

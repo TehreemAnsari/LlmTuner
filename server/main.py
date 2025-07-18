@@ -23,7 +23,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import List, Optional
-from datetime import timedelta
+from datetime import timedelta, datetime
 import uuid
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
@@ -587,18 +587,47 @@ async def upload_files(files: List[UploadFile] = File(...), current_user: dict =
         print(f"📄 {file.filename}: {ext.upper()} file with {lines} lines")
         print(f"🗂️ Stored in S3: {s3_key}")
         
-        processed_files.append({
+        # Store file metadata in user's file history
+        file_info = {
+            "name": file.filename,
             "originalName": file.filename,
             "size": len(content),
             "type": ext,
+            "lines": lines,
             "contentPreview": content_str[:200] + ("..." if len(content_str) > 200 else ""),
-            "s3_key": s3_key
-        })
+            "s3_key": s3_key,
+            "upload_date": datetime.now().isoformat()
+        }
+        
+        # Store in user's file history (in-memory for now, should be in DB for production)
+        if not hasattr(app.state, 'user_file_history'):
+            app.state.user_file_history = {}
+        
+        if user_id not in app.state.user_file_history:
+            app.state.user_file_history[user_id] = []
+        
+        app.state.user_file_history[user_id].append(file_info)
+        
+        processed_files.append(file_info)
     
     return UploadResponse(
         message="Files uploaded and processed successfully",
         files=processed_files
     )
+
+@app.get("/api/file-history")
+async def get_file_history(current_user: dict = Depends(get_current_user)):
+    """Get user's file upload history"""
+    if not hasattr(app.state, 'user_file_history'):
+        app.state.user_file_history = {}
+    
+    user_id = current_user["user_id"]
+    user_files = app.state.user_file_history.get(user_id, [])
+    
+    # Sort by upload date (most recent first)
+    user_files.sort(key=lambda x: x.get('upload_date', ''), reverse=True)
+    
+    return {"files": user_files}
 
 @app.post("/api/start-training", response_model=TrainingResponse)
 async def start_training(request: TrainingRequest, current_user: dict = Depends(get_current_user)):
