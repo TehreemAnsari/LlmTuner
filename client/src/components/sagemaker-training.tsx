@@ -94,7 +94,6 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
 
   const startTraining = async () => {
     console.log('SageMaker startTraining function called');
-    alert('TEST: SageMaker function was called!');
     if (uploadedFiles.length === 0) {
       alert('Please upload training files first');
       return;

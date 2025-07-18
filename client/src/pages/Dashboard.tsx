@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import FileUpload from "../components/file-upload";
-
 import SageMakerTraining from "../components/sagemaker-training";
 import ModelTesting from "../components/model-testing";
 

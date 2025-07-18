@@ -1,21 +1,10 @@
 #!/usr/bin/env python3
 """
-This is a FastAPI-based Python backend designed for a platform that allows users to:
-1. Upload training data files
-2. Configure training hyperparameters
-3. Run GPT-2 fine-tuning jobs via a Python script
-4. Serve the frontend UI via static files
-
-On server start, checks for the presence of gpt2_tuning.py.
-
-If not found, creates a lightweight script that:
-
-Parses command-line arguments
-
-Loads training data from the given file
-
-Shows sample data + hyperparameters
-
+FastAPI backend for LLM Tuner Platform:
+- AWS SageMaker integration for model training
+- File upload to S3 storage
+- Google OAuth authentication
+- Job monitoring and management
 """
 
 import os
@@ -139,18 +128,11 @@ class Hyperparameters(BaseModel):
     weight_decay: float = 0.01
     max_sequence_length: int = 2048
 
-class TrainingRequest(BaseModel):
-    hyperparameters: Hyperparameters
-    files: List[str]
-
 class UploadResponse(BaseModel):
     message: str
     files: List[dict]
 
-class TrainingResponse(BaseModel):
-    message: str
-    hyperparameters: Hyperparameters
-    files: List[dict]
+# Local training models removed - AWS SageMaker only
 
 class SageMakerTrainingRequest(BaseModel):
     base_model: str
@@ -181,103 +163,7 @@ class TrainingJobStatus(BaseModel):
     training_metrics: List[dict]
     estimated_cost: float
 
-def create_gpt2_script():
-    """Create the GPT-2 tuning script if it doesn't exist"""
-    script_path = Path("gpt2_tuning.py")
-    if script_path.exists():
-        return
-    
-    script_content = '''#!/usr/bin/env python3
-"""
-GPT-2 Fine-tuning Script
-Processes uploaded datasets with configurable hyperparameters
-"""
-
-import sys
-import json
-import argparse
-
-def read_data(file_content, file_type):
-    """Process file content into training dataset"""
-    print(f"Processing file content of type: {file_type}")
-    print(f"Content length: {len(file_content)} characters")
-    
-    if file_type in ['.txt', '.text']:
-        texts = [line.strip() for line in file_content.split('\\n') if line.strip()]
-    elif file_type == '.json':
-        try:
-            data = json.loads(file_content)
-            texts = data if isinstance(data, list) else [str(data)]
-        except:
-            texts = [file_content]
-    else:
-        texts = [line.strip() for line in file_content.split('\\n') if line.strip()]
-    
-    print(f"Prepared {len(texts)} text samples for training")
-    return {"texts": texts}
-
-def main():
-    parser = argparse.ArgumentParser(description="GPT-2 Fine-tuning Script")
-    parser.add_argument("--file_name", required=True, help="Name of the uploaded file")
-    parser.add_argument("--file_type", required=True, help="Type of the uploaded file")
-    parser.add_argument("--content_file", help="Path to file containing content")
-    parser.add_argument("--hyperparameters", help="JSON string of hyperparameters")
-    
-    args = parser.parse_args()
-    
-    print("=== 🚀 GPT-2 Fine-tuning with Uploaded Data ===")
-    print(f"📄 File: {args.file_name}")
-    print(f"📁 Type: {args.file_type}")
-    
-    # Read file content
-    if args.content_file:
-        try:
-            with open(args.content_file, 'r', encoding='utf-8') as f:
-                file_content = f.read()
-            print(f"✅ Read content from {args.content_file}")
-        except Exception as e:
-            print(f"❌ Error reading content file: {e}")
-            sys.exit(1)
-    else:
-        print("❌ No content file provided")
-        sys.exit(1)
-    
-    # Process dataset
-    dataset_dict = read_data(file_content, args.file_type)
-    
-    # Show first 5 dataset samples
-    if 'texts' in dataset_dict and dataset_dict['texts']:
-        print("\\n=== First 5 Dataset Samples ===")
-        for i, text in enumerate(dataset_dict['texts'][:5], 1):
-            preview = text[:150] + "..." if len(text) > 150 else text
-            print(f"Sample {i}: {preview}")
-        print("===============================")
-    
-    # Parse and display hyperparameters
-    if args.hyperparameters:
-        try:
-            hyperparams = json.loads(args.hyperparameters)
-            print(f"📊 Hyperparameters loaded------>: {hyperparams}")
-            
-            # Show dataset samples after hyperparameters
-            if 'texts' in dataset_dict and dataset_dict['texts']:
-                print("\\n=== Dataset Samples After Hyperparameters Loaded ===")
-                for i, text in enumerate(dataset_dict['texts'][:5], 1):
-                    preview = text[:150] + "..." if len(text) > 150 else text
-                    print(f"Sample {i}: {preview}")
-                print("===================================================")
-        except Exception as e:
-            print(f"⚠️ Could not parse hyperparameters: {e}")
-
-if __name__ == "__main__":
-    main()
-'''
-    
-    script_path.write_text(script_content)
-    print(f"Created GPT-2 tuning script: {script_path}")
-
-# Initialize GPT-2 script on startup
-create_gpt2_script()
+# GPT-2 script creation removed - local training deprecated
 
 # Dependency to get current user
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -629,104 +515,7 @@ async def get_file_history(current_user: dict = Depends(get_current_user)):
     
     return {"files": user_files}
 
-@app.post("/api/start-training", response_model=TrainingResponse)
-async def start_training(request: TrainingRequest, current_user: dict = Depends(get_current_user)):
-    """Start training with hyperparameters using S3-stored files (Legacy GPT-2 script)"""
-    print(f"🎯 Starting training with hyperparameters: {request.hyperparameters.model_dump()}")
-    print(f"📂 Training files: {request.files}")
-    
-    processed_files = []
-    user_id = current_user["user_id"]
-    
-    for filename in request.files:
-        temp_content_path = None
-        ext = Path(filename).suffix.lower()
-        
-        try:
-            # List objects in user's S3 folder to find the content file
-            s3_client = get_s3_client()
-            prefix = f"users/{user_id}/uploads/"
-            
-            response = s3_client.list_objects_v2(
-                Bucket=S3_BUCKET_NAME,
-                Prefix=prefix
-            )
-            
-            file_s3_key = None
-            for obj in response.get('Contents', []):
-                obj_key = obj['Key']
-                # Look for the original file that matches this filename
-                if filename in obj_key and not obj_key.endswith(f"content_{filename}"):
-                    file_s3_key = obj_key
-                    break
-            
-            if not file_s3_key:
-                print(f"⚠️ File not found in S3 for {filename}")
-                continue
-            
-            # Download content from S3
-            print(f"📥 Downloading {file_s3_key} from S3...")
-            content_bytes = await download_from_s3(file_s3_key)
-            content_str = content_bytes.decode('utf-8')
-            
-            # Create temporary local file for GPT-2 script
-            # Use temporary file for processing
-            with tempfile.NamedTemporaryFile(mode='w', suffix=f'_{filename}', delete=False) as temp_file:
-                temp_file.write(content_str)
-                temp_content_path = Path(temp_file.name)
-            
-            # Execute GPT-2 script with hyperparameters
-            hyperparams_json = json.dumps(request.hyperparameters.model_dump())
-            
-            cmd = [
-                "python", "gpt2_tuning.py",
-                "--file_name", filename,
-                "--file_type", ext,
-                "--content_file", str(temp_content_path),
-                "--hyperparameters", hyperparams_json
-            ]
-            
-            print(f"🔧 Executing: {' '.join(cmd[:6])}...")
-            
-            try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-                
-                if result.stdout:
-                    print("=== GPT-2 Script Output ===")
-                    for line in result.stdout.strip().split('\\n'):
-                        if line.strip():
-                            print(line)
-                    print("==========================")
-                
-                if result.stderr:
-                    print(f"⚠️ GPT-2 Script Errors: {result.stderr}")
-                    
-            except subprocess.TimeoutExpired:
-                print(f"⏰ Training timeout for {filename}")
-            except Exception as e:
-                print(f"❌ Training error for {filename}: {e}")
-            
-            processed_files.append({
-                "fileName": filename,
-                "tuningInfo": {
-                    "tuningScript": "gpt2_tuning.py",
-                    "fileName": filename,
-                    "fileType": ext
-                }
-            })
-                    
-        except Exception as e:
-            print(f"❌ Error processing {filename} from S3: {e}")
-        finally:
-            # Clean up temporary file
-            if temp_content_path and temp_content_path.exists():
-                temp_content_path.unlink()
-    
-    return TrainingResponse(
-        message="Training completed successfully",
-        hyperparameters=request.hyperparameters,
-        files=processed_files
-    )
+# Local training endpoint removed - AWS SageMaker only
 
 @app.post("/api/sagemaker-training", response_model=SageMakerTrainingResponse)
 async def start_sagemaker_training(request: SageMakerTrainingRequest, current_user: dict = Depends(get_current_user)):
