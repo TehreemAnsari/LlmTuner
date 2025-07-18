@@ -44,6 +44,8 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [progressUpdates, setProgressUpdates] = useState<string[]>([]);
   const [activeJobName, setActiveJobName] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalData, setSuccessModalData] = useState<any>(null);
 
   const loadTrainingJobs = async () => {
     try {
@@ -112,6 +114,17 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
       if (response.ok) {
         const result = await response.json();
         console.log('Training started:', result);
+        
+        // Show immediate success modal
+        setSuccessModalData({
+          jobName: result.job_name,
+          instance: selectedInstance,
+          model: selectedModel,
+          filesCount: uploadedFiles.length,
+          samples: result.total_samples || 'Processing...',
+          cost: estimatedCost.hourly_cost
+        });
+        setShowSuccessModal(true);
         
         // Show success message and set up progress tracking
         setTrainingStarted(true);
@@ -255,6 +268,71 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
               Last update: {lastUpdateTime.toLocaleString()}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && successModalData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="ml-3 text-lg font-medium text-gray-900 dark:text-white">
+                Training Started Successfully!
+              </h3>
+            </div>
+            
+            <div className="space-y-3 mb-6">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Job Name:</p>
+                <p className="font-medium text-gray-900 dark:text-white">{successModalData.jobName}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Instance:</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{successModalData.instance}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Model:</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{successModalData.model}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Files:</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{successModalData.filesCount}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Samples:</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{successModalData.samples}</p>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                <p className="text-sm text-blue-600 dark:text-blue-400">Estimated Cost:</p>
+                <p className="font-medium text-blue-900 dark:text-blue-300">${successModalData.cost}/hour</p>
+              </div>
+            </div>
+            
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 mb-6">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                📋 You will receive progress updates every 30-60 minutes while training is in progress.
+              </p>
+            </div>
+            
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              Got it!
+            </button>
+          </div>
         </div>
       )}
       
