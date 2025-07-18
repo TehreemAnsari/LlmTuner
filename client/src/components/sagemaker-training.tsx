@@ -475,9 +475,9 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
               : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
-          {isTraining ? 'Starting Training...' : 
-           isTrainingActive ? 'Training in Progress - Please Wait' : 
-           'Start Training'}
+          {isTraining ? 'Starting SageMaker Training...' : 
+           isTrainingActive ? 'SageMaker Training in Progress - Please Wait' : 
+           '🚀 Start AWS SageMaker Training'}
         </button>
         
         {isTrainingActive && (
