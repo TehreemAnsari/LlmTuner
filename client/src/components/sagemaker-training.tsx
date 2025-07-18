@@ -46,6 +46,8 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
   const [activeJobName, setActiveJobName] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalData, setSuccessModalData] = useState<any>(null);
+  const [isTrainingActive, setIsTrainingActive] = useState(false);
+  const [currentTrainingJob, setCurrentTrainingJob] = useState<string | null>(null);
 
   const loadTrainingJobs = async () => {
     try {
@@ -63,6 +65,11 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         
         if (activeJobs && activeJobs.length > 0) {
           setActiveJobName(activeJobs[0].job_name);
+          setIsTrainingActive(true);
+          setCurrentTrainingJob(activeJobs[0].job_name);
+        } else {
+          setIsTrainingActive(false);
+          setCurrentTrainingJob(null);
         }
       }
     } catch (error) {
@@ -129,6 +136,8 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         // Show success message and set up progress tracking
         setTrainingStarted(true);
         setActiveJobName(result.job_name);
+        setIsTrainingActive(true);
+        setCurrentTrainingJob(result.job_name);
         setLastUpdateTime(new Date());
         setProgressUpdates([
           `Training job "${result.job_name}" started successfully!`,
@@ -187,14 +196,20 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
           updateMessage = `✅ Training completed successfully! (Total time: ${elapsedMinutes} minutes)`;
           setTrainingStarted(false);
           setActiveJobName(null);
+          setIsTrainingActive(false);
+          setCurrentTrainingJob(null);
         } else if (status.status === 'Failed') {
           updateMessage = `❌ Training failed after ${elapsedMinutes} minutes. Check logs for details.`;
           setTrainingStarted(false);
           setActiveJobName(null);
+          setIsTrainingActive(false);
+          setCurrentTrainingJob(null);
         } else if (status.status === 'Stopped') {
           updateMessage = `⏸️ Training stopped after ${elapsedMinutes} minutes.`;
           setTrainingStarted(false);
           setActiveJobName(null);
+          setIsTrainingActive(false);
+          setCurrentTrainingJob(null);
         }
         
         if (updateMessage) {
@@ -273,17 +288,20 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
 
       {/* Success Modal */}
       {showSuccessModal && successModalData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center mb-4">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-lg w-full mx-4 border-4 border-green-400 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-800 mb-4">
+                <svg className="h-8 w-8 text-green-500 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               </div>
-              <h3 className="ml-3 text-lg font-medium text-gray-900 dark:text-white">
-                Training Started Successfully!
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                🎉 Training Started Successfully!
               </h3>
+              <p className="text-lg text-green-600 dark:text-green-400 font-medium">
+                Your model is now being trained on AWS SageMaker
+              </p>
             </div>
             
             <div className="space-y-3 mb-6">
@@ -320,17 +338,31 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
               </div>
             </div>
             
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 mb-6">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                📋 You will receive progress updates every 30-60 minutes while training is in progress.
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 mb-6 border-2 border-red-200">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm font-bold text-red-800 dark:text-red-200">
+                  IMPORTANT: Do not start another training job!
+                </p>
+              </div>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                This training job will take 1-4 hours to complete. Starting multiple jobs will cost extra money. Wait for this job to finish before training another model.
+              </p>
+            </div>
+            
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                📋 You will receive progress updates every 30-60 minutes while training is in progress. The training button will be disabled until this job completes.
               </p>
             </div>
             
             <button
               onClick={() => setShowSuccessModal(false)}
-              className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-bold text-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 transform hover:scale-105 transition-all duration-200"
             >
-              Got it!
+              I Understand - Continue Monitoring
             </button>
           </div>
         </div>
@@ -393,19 +425,46 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         </div>
       </div>
 
+      {/* Active Training Warning */}
+      {isTrainingActive && (
+        <div className="mb-6 p-4 bg-orange-50 border-l-4 border-orange-400 rounded-lg">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-orange-800">Training Already in Progress</h3>
+              <div className="mt-2 text-sm text-orange-700">
+                <p>Job "{currentTrainingJob}" is currently running. Please wait for it to complete before starting a new training job.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Training Button */}
       <div className="mb-6">
         <button
           onClick={startTraining}
-          disabled={isTraining || uploadedFiles.length === 0}
+          disabled={isTraining || uploadedFiles.length === 0 || isTrainingActive}
           className={`w-full py-3 px-4 rounded-md font-semibold ${
-            isTraining || uploadedFiles.length === 0
+            isTraining || uploadedFiles.length === 0 || isTrainingActive
               ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
-          {isTraining ? 'Starting Training...' : 'Start Training'}
+          {isTraining ? 'Starting Training...' : 
+           isTrainingActive ? 'Training in Progress - Please Wait' : 
+           'Start Training'}
         </button>
+        
+        {isTrainingActive && (
+          <p className="mt-2 text-sm text-orange-600 text-center">
+            ⚠️ You cannot start multiple training jobs simultaneously. Wait for the current job to complete.
+          </p>
+        )}
       </div>
 
       {/* Training Jobs */}
