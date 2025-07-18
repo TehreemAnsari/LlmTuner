@@ -93,12 +93,14 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
   };
 
   const startTraining = async () => {
+    console.log('SageMaker startTraining function called');
     if (uploadedFiles.length === 0) {
       alert('Please upload training files first');
       return;
     }
 
     setIsTraining(true);
+    console.log('Making SageMaker API call...');
     try {
       const response = await fetch('/api/sagemaker-training', {
         method: 'POST',
@@ -118,6 +120,7 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         })
       });
 
+      console.log('SageMaker API response received, status:', response.status);
       if (response.ok) {
         const result = await response.json();
         console.log('Training started:', result);
@@ -165,12 +168,14 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         
         await loadTrainingJobs();
       } else {
+        console.log('SageMaker API call failed with status:', response.status);
         const errorData = await response.json();
         console.error('Training failed:', errorData);
         alert('Training failed: ' + errorData.detail);
       }
     } catch (error) {
-      console.error('Error starting training:', error);
+      console.error('Error starting SageMaker training:', error);
+      alert('Error starting training: ' + error.message);
     } finally {
       setIsTraining(false);
     }
