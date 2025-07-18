@@ -32,7 +32,10 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('File history loaded:', data.files);
         setFileHistory(data.files || []);
+      } else {
+        console.error('Failed to load file history:', response.status);
       }
     } catch (error) {
       console.error('Error loading file history:', error);
@@ -118,8 +121,10 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
       onFilesUploaded(selectedFiles);
       setSelectedFiles([]);
       
-      // Refresh file history after upload
-      loadFileHistory();
+      // Refresh file history after upload with delay to ensure backend update
+      setTimeout(() => {
+        loadFileHistory();
+      }, 500);
     } catch (error) {
       console.error("Upload error:", error);
       alert("Upload failed. Please try again.");
@@ -218,6 +223,7 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
           </div>
         ) : fileHistory.length > 0 ? (
           <div className="space-y-2 max-h-60 overflow-y-auto">
+            <p className="text-xs text-gray-500 mb-2">Found {fileHistory.length} files in history</p>
             {fileHistory.map((file, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1">

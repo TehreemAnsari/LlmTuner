@@ -132,10 +132,15 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
           cost: estimatedCost.hourly_cost
         };
         console.log('Setting success modal data:', modalData);
-        setSuccessModalData(modalData);
-        setShowSuccessModal(true);
         
-        // Also show browser alert as backup
+        // Force React state update with setTimeout to ensure state update happens
+        setTimeout(() => {
+          setSuccessModalData(modalData);
+          setShowSuccessModal(true);
+          console.log('Success modal should now be visible');
+        }, 100);
+        
+        // Show immediate browser alert for guaranteed user notification
         alert(`🎉 TRAINING STARTED SUCCESSFULLY!\n\nJob: ${result.job_name}\nInstance: ${selectedInstance}\nModel: ${selectedModel}\nFiles: ${uploadedFiles.length}\nSamples: ${result.total_samples || 'Processing...'}\nCost: $${estimatedCost.hourly_cost}/hour\n\n⚠️ IMPORTANT: Do NOT start another training job until this one completes (1-4 hours)!`);
         
         // Show success message and set up progress tracking
