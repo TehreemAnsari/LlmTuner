@@ -122,6 +122,9 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         const result = await response.json();
         console.log('Training started:', result);
         
+        // IMMEDIATELY show browser alert first
+        alert(`🎉 TRAINING STARTED SUCCESSFULLY!\n\nJob: ${result.job_name}\nInstance: ${selectedInstance}\nModel: ${selectedModel}\nFiles: ${uploadedFiles.length}\nSamples: ${result.total_samples || 'Processing...'}\nCost: $${estimatedCost.hourly_cost}/hour\n\n⚠️ IMPORTANT: Do NOT start another training job until this one completes (1-4 hours)!`);
+        
         // Show immediate success modal
         const modalData = {
           jobName: result.job_name,
@@ -140,8 +143,7 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
           console.log('Success modal should now be visible, showSuccessModal:', true, 'successModalData:', modalData);
         }, 100);
         
-        // Show immediate browser alert for guaranteed user notification
-        alert(`🎉 TRAINING STARTED SUCCESSFULLY!\n\nJob: ${result.job_name}\nInstance: ${selectedInstance}\nModel: ${selectedModel}\nFiles: ${uploadedFiles.length}\nSamples: ${result.total_samples || 'Processing...'}\nCost: $${estimatedCost.hourly_cost}/hour\n\n⚠️ IMPORTANT: Do NOT start another training job until this one completes (1-4 hours)!`);
+        // Alert was already shown above
         
         // Show success message and set up progress tracking
         setTrainingStarted(true);
