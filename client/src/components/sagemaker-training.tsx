@@ -123,7 +123,9 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         console.log('Training started:', result);
         
         // IMMEDIATELY show browser alert first
-        alert(`🎉 TRAINING STARTED SUCCESSFULLY!\n\nJob: ${result.job_name}\nInstance: ${selectedInstance}\nModel: ${selectedModel}\nFiles: ${uploadedFiles.length}\nSamples: ${result.total_samples || 'Processing...'}\nCost: $${estimatedCost.hourly_cost}/hour\n\n⚠️ IMPORTANT: Do NOT start another training job until this one completes (1-4 hours)!`);
+        console.log('About to show SageMaker alert for job:', result.job_name);
+        alert(`🎉 SAGEMAKER TRAINING STARTED SUCCESSFULLY!\n\nJob: ${result.job_name}\nInstance: ${selectedInstance}\nModel: ${selectedModel}\nFiles: ${uploadedFiles.length}\nSamples: ${result.total_samples || 'Processing...'}\nCost: $${estimatedCost.hourly_cost}/hour\n\n⚠️ IMPORTANT: Do NOT start another training job until this one completes (1-4 hours)!`);
+        console.log('SageMaker alert should have appeared');
         
         // Show immediate success modal
         const modalData = {
