@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface SageMakerTrainingProps {
@@ -40,6 +40,10 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
   const [isTraining, setIsTraining] = useState(false);
   const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
   const [estimatedCost, setEstimatedCost] = useState({ hourly_cost: 0.096, total_estimated_cost: 0.192 });
+  const [trainingStarted, setTrainingStarted] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const [progressUpdates, setProgressUpdates] = useState<string[]>([]);
+  const [activeJobName, setActiveJobName] = useState<string | null>(null);
 
   const loadTrainingJobs = async () => {
     try {
@@ -47,8 +51,17 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
-        const jobs = await response.json();
-        setTrainingJobs(jobs);
+        const data = await response.json();
+        setTrainingJobs(data.training_jobs || []);
+        
+        // Check for active training jobs
+        const activeJobs = data.training_jobs?.filter((job: TrainingJob) => 
+          job.status === 'InProgress' || job.status === 'Starting'
+        );
+        
+        if (activeJobs && activeJobs.length > 0) {
+          setActiveJobName(activeJobs[0].job_name);
+        }
       }
     } catch (error) {
       console.error('Error loading training jobs:', error);
@@ -99,14 +112,88 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
       if (response.ok) {
         const result = await response.json();
         console.log('Training started:', result);
+        
+        // Show success message and set up progress tracking
+        setTrainingStarted(true);
+        setActiveJobName(result.job_name);
+        setLastUpdateTime(new Date());
+        setProgressUpdates([
+          `Training job "${result.job_name}" started successfully!`,
+          `Using ${selectedInstance} instance with ${selectedModel} model`,
+          `Training ${uploadedFiles.length} files with ${result.total_samples || 'unknown'} samples`,
+          `Estimated cost: $${estimatedCost.hourly_cost}/hour`
+        ]);
+        
+        // Start periodic progress updates
+        startProgressUpdates(result.job_name);
+        
         await loadTrainingJobs();
       } else {
-        console.error('Training failed');
+        const errorData = await response.json();
+        console.error('Training failed:', errorData);
+        alert('Training failed: ' + errorData.detail);
       }
     } catch (error) {
       console.error('Error starting training:', error);
     } finally {
       setIsTraining(false);
+    }
+  };
+
+  // Progress monitoring functions
+  const startProgressUpdates = (jobName: string) => {
+    const interval = setInterval(async () => {
+      await checkTrainingProgress(jobName);
+    }, 30 * 60 * 1000); // Check every 30 minutes
+
+    // Clear interval after 4 hours (typical training duration)
+    setTimeout(() => {
+      clearInterval(interval);
+    }, 4 * 60 * 60 * 1000);
+  };
+
+  const checkTrainingProgress = async (jobName: string) => {
+    try {
+      const response = await fetch(`/api/training-job/${jobName}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const status = await response.json();
+        const now = new Date();
+        
+        // Calculate elapsed time
+        const startTime = new Date(status.creation_time);
+        const elapsedMinutes = Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60));
+        
+        let updateMessage = '';
+        
+        if (status.status === 'InProgress') {
+          updateMessage = `🔄 Training in progress (${elapsedMinutes} minutes elapsed)`;
+        } else if (status.status === 'Completed') {
+          updateMessage = `✅ Training completed successfully! (Total time: ${elapsedMinutes} minutes)`;
+          setTrainingStarted(false);
+          setActiveJobName(null);
+        } else if (status.status === 'Failed') {
+          updateMessage = `❌ Training failed after ${elapsedMinutes} minutes. Check logs for details.`;
+          setTrainingStarted(false);
+          setActiveJobName(null);
+        } else if (status.status === 'Stopped') {
+          updateMessage = `⏸️ Training stopped after ${elapsedMinutes} minutes.`;
+          setTrainingStarted(false);
+          setActiveJobName(null);
+        }
+        
+        if (updateMessage) {
+          setProgressUpdates(prev => [...prev, updateMessage]);
+          setLastUpdateTime(now);
+        }
+        
+        // Refresh training jobs list
+        await loadTrainingJobs();
+      }
+    } catch (error) {
+      console.error('Error checking training progress:', error);
     }
   };
 
@@ -118,11 +205,58 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
     loadTrainingJobs();
   }, []);
 
+  // Check for existing active training jobs and resume monitoring
+  React.useEffect(() => {
+    if (activeJobName && !trainingStarted) {
+      setTrainingStarted(true);
+      startProgressUpdates(activeJobName);
+    }
+  }, [activeJobName]);
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">
         AWS SageMaker LLM Fine-Tuning
       </h2>
+
+      {/* Training Success Message */}
+      {trainingStarted && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">Training Started Successfully!</h3>
+              <div className="mt-2 text-sm text-green-700">
+                <p>Your model training job has been initiated. You'll receive progress updates every 30-60 minutes.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Progress Updates */}
+      {progressUpdates.length > 0 && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="text-sm font-medium text-blue-800 mb-3">Training Progress Updates</h3>
+          <div className="space-y-2">
+            {progressUpdates.map((update, index) => (
+              <div key={index} className="flex items-start">
+                <span className="text-blue-600 mr-2">•</span>
+                <span className="text-sm text-blue-700">{update}</span>
+              </div>
+            ))}
+          </div>
+          {lastUpdateTime && (
+            <div className="mt-3 text-xs text-blue-600">
+              Last update: {lastUpdateTime.toLocaleString()}
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Model Selection */}
       <div className="mb-6">
