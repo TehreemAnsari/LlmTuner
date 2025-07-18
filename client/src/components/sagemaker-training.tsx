@@ -137,7 +137,7 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         setTimeout(() => {
           setSuccessModalData(modalData);
           setShowSuccessModal(true);
-          console.log('Success modal should now be visible');
+          console.log('Success modal should now be visible, showSuccessModal:', true, 'successModalData:', modalData);
         }, 100);
         
         // Show immediate browser alert for guaranteed user notification
@@ -296,7 +296,8 @@ export default function SageMakerTraining({ uploadedFiles }: SageMakerTrainingPr
         </div>
       )}
 
-      {/* Success Modal */}
+      {/* Success Modal - Debug: showSuccessModal={String(showSuccessModal)}, hasData={String(!!successModalData)} */}
+      {console.log('Rendering success modal check:', showSuccessModal, !!successModalData)}
       {showSuccessModal && successModalData && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-lg w-full mx-4 border-4 border-green-400 shadow-2xl">

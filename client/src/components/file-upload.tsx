@@ -203,8 +203,11 @@ export default function FileUpload({ onFilesUploaded }: FileUploadProps) {
         </div>
       )}
 
-      {/* User File History Section */}
-      <div className="mt-8 border-t pt-6">
+      {/* User File History Section - Debug: fileHistory.length={fileHistory.length} */}
+      <div className="mt-8 border-t pt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="text-xs text-yellow-800 mb-2">
+          DEBUG: File history loaded = {fileHistory.length} files | Loading = {loadingHistory ? 'yes' : 'no'}
+        </div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800">User File History</h3>
           <button
