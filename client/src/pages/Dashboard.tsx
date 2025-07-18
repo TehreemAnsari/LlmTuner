@@ -8,6 +8,7 @@ const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [activeTab, setActiveTab] = useState<'sagemaker' | 'testing'>('sagemaker');
+  // FORCE REBUILD - Only 2 tabs: sagemaker and testing
   const [trainingJobs, setTrainingJobs] = useState<any[]>([]);
 
   const handleFilesUploaded = (files: File[]) => {
@@ -21,7 +22,7 @@ const Dashboard: React.FC = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                LLM Tuner Platform
+                LLM Tuner Platform - AWS SageMaker Only
               </h1>
               <p className="text-gray-600">
                 Welcome back, {user?.full_name || user?.email}
@@ -57,7 +58,7 @@ const Dashboard: React.FC = () => {
               <FileUpload onFilesUploaded={handleFilesUploaded} />
             </div>
 
-            {/* Training Options Tabs */}
+            {/* AWS SAGEMAKER ONLY - NO LOCAL TRAINING */}
             <div className="bg-white rounded-lg shadow-sm border">
               <div className="border-b border-gray-200">
                 <nav className="flex space-x-8 px-6" aria-label="Tabs">

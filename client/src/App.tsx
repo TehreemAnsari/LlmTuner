@@ -2,6 +2,7 @@ import React from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
+// NO LOCAL TRAINING - SAGEMAKER ONLY - Cache Bust: 1752879217
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
