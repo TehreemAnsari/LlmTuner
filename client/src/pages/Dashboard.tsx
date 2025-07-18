@@ -48,7 +48,7 @@ const Dashboard: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <div className="mb-6">
             <p className="text-gray-600">
-              Fine-tune Large Language Models with custom datasets and hyperparameters
+              AWS SageMaker training for Large Language Models with custom datasets
             </p>
           </div>
 
